@@ -16,14 +16,13 @@ export interface IStorage {
   createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest>;
   getLeaveRequest(id: string): Promise<LeaveRequest | undefined>;
   updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined>;
-  getLeaveRequestsByStudent(studentId: string): Promise<LeaveRequest[]>;
+  getLeaveRequestsByStudent(student_id: string): Promise<LeaveRequest[]>;
   getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]>;
-  getCurrentLeaveRequest(studentId: string): Promise<LeaveRequest | undefined>;
+  getCurrentLeaveRequest(student_id: string): Promise<LeaveRequest | undefined>;
   
   // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
-  getNotificationsByUser(userId: string): Promise<Notification[]>;
-  markNotificationAsRead(id: string): Promise<void>;
+  getNotificationsByUser(user_id: string): Promise<Notification[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -45,66 +44,61 @@ export class MemStorage implements IStorage {
         id: "student-001",
         email: "student@college.edu",
         name: "John Student",
+        password: "password123",
         role: "Student",
-        department: "Computer Science",
+        dept: "Computer Science",
         year: "3rd Year",
-        rollNumber: "CS2021001",
-        hostelStatus: "Hostel A - Room 205",
-        profilePicUrl: null,
-        mentorId: "mentor-001",
-        createdAt: new Date().toISOString()
+        hostel_status: "Hostel A - Room 205",
+        profile_pic_url: null,
+        mentor_id: "mentor-001"
       },
       {
         id: "mentor-001", 
         email: "mentor@college.edu",
         name: "Dr. Sarah Mentor",
+        password: "password123",
         role: "Mentor", 
-        department: "Computer Science",
+        dept: "Computer Science",
         year: null,
-        rollNumber: null,
-        hostelStatus: null,
-        profilePicUrl: null,
-        mentorId: null,
-        createdAt: new Date().toISOString()
+        hostel_status: null,
+        profile_pic_url: null,
+        mentor_id: null
       },
       {
         id: "hod-001",
         email: "hod@college.edu", 
         name: "Prof. Michael HOD",
+        password: "password123",
         role: "HOD",
-        department: "Computer Science",
+        dept: "Computer Science",
         year: null,
-        rollNumber: null,
-        hostelStatus: null,
-        profilePicUrl: null,
-        mentorId: null,
-        createdAt: new Date().toISOString()
+        hostel_status: null,
+        profile_pic_url: null,
+        mentor_id: null
       },
       {
         id: "principal-001",
         email: "principal@college.edu",
-        name: "Dr. Jennifer Principal", 
+        name: "Dr. Jennifer Principal",
+        password: "password123", 
         role: "Principal",
-        department: null,
+        dept: null,
         year: null,
-        rollNumber: null,
-        hostelStatus: null,
-        profilePicUrl: null,
-        mentorId: null,
-        createdAt: new Date().toISOString()
+        hostel_status: null,
+        profile_pic_url: null,
+        mentor_id: null
       },
       {
         id: "warden-001",
         email: "warden@college.edu",
         name: "Mr. David Warden",
+        password: "password123",
         role: "Warden",
-        department: null,
+        dept: null,
         year: null,
-        rollNumber: null,
-        hostelStatus: null,
-        profilePicUrl: null,
-        mentorId: null,
-        createdAt: new Date().toISOString()
+        hostel_status: null,
+        profile_pic_url: null,
+        mentor_id: null
       }
     ];
 
@@ -115,20 +109,14 @@ export class MemStorage implements IStorage {
     // Create a sample leave request for testing
     const sampleLeaveRequest = {
       id: "leave-001",
-      studentId: "student-001",
-      leaveType: "medical",
+      student_id: "student-001",
       reason: "Medical checkup appointment",
-      fromDate: "2024-01-15",
-      toDate: "2024-01-16", 
-      emergencyContact: "+91-9876543210",
-      supportingDocs: null,
-      isHostelStudent: true,
+      start_date: "2024-01-15",
+      end_date: "2024-01-16",
       status: "pending",
-      currentStage: "mentor",
-      approvals: [],
-      finalQrUrl: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      approver_stage: "mentor",
+      comments: null,
+      final_qr_url: null
     };
 
     this.leaveRequests.set(sampleLeaveRequest.id, sampleLeaveRequest);
@@ -147,14 +135,12 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const user: User = { 
       ...insertUser,
-      department: insertUser.department ?? null,
+      dept: insertUser.dept ?? null,
       year: insertUser.year ?? null,
-      rollNumber: insertUser.rollNumber ?? null,
-      hostelStatus: insertUser.hostelStatus ?? null,
-      profilePicUrl: insertUser.profilePicUrl ?? null,
-      mentorId: insertUser.mentorId ?? null,
-      id,
-      createdAt: new Date().toISOString()
+      hostel_status: insertUser.hostel_status ?? null,
+      profile_pic_url: insertUser.profile_pic_url ?? null,
+      mentor_id: insertUser.mentor_id ?? null,
+      id
     };
     this.users.set(id, user);
     return user;
@@ -174,7 +160,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUsersByDepartment(department: string): Promise<User[]> {
-    return Array.from(this.users.values()).filter(user => user.department === department);
+    return Array.from(this.users.values()).filter(user => user.dept === department);
   }
 
   // Leave request operations
@@ -182,16 +168,11 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const request: LeaveRequest = {
       ...insertRequest,
-      emergencyContact: insertRequest.emergencyContact ?? null,
-      supportingDocs: insertRequest.supportingDocs ?? null,
-      isHostelStudent: insertRequest.isHostelStudent ?? null,
       id,
       status: "pending",
-      currentStage: "mentor",
-      approvals: [],
-      finalQrUrl: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      approver_stage: "mentor",
+      comments: null,
+      final_qr_url: null
     };
     this.leaveRequests.set(id, request);
     return request;
@@ -207,22 +188,20 @@ export class MemStorage implements IStorage {
     
     const updatedRequest = { 
       ...request, 
-      ...updates, 
-      updatedAt: new Date().toISOString() 
+      ...updates
     };
     this.leaveRequests.set(id, updatedRequest);
     return updatedRequest;
   }
 
-  async getLeaveRequestsByStudent(studentId: string): Promise<LeaveRequest[]> {
+  async getLeaveRequestsByStudent(student_id: string): Promise<LeaveRequest[]> {
     return Array.from(this.leaveRequests.values())
-      .filter(request => request.studentId === studentId)
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+      .filter(request => request.student_id === student_id);
   }
 
   async getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]> {
     return Array.from(this.leaveRequests.values()).filter(request => {
-      if (request.status !== "pending" || request.currentStage !== stage) {
+      if (request.status !== "pending" || request.approver_stage !== stage) {
         return false;
       }
       
@@ -236,10 +215,9 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getCurrentLeaveRequest(studentId: string): Promise<LeaveRequest | undefined> {
+  async getCurrentLeaveRequest(student_id: string): Promise<LeaveRequest | undefined> {
     return Array.from(this.leaveRequests.values())
-      .filter(request => request.studentId === studentId && request.status === "pending")
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())[0];
+      .filter(request => request.student_id === student_id && request.status === "pending")[0];
   }
 
   // Notification operations
@@ -247,66 +225,89 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const notification: Notification = {
       ...insertNotification,
-      relatedLeaveId: insertNotification.relatedLeaveId ?? null,
       id,
-      isRead: false,
-      createdAt: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
     this.notifications.set(id, notification);
     return notification;
   }
 
-  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+  async getNotificationsByUser(user_id: string): Promise<Notification[]> {
     return Array.from(this.notifications.values())
-      .filter(notification => notification.userId === userId)
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
-  }
-
-  async markNotificationAsRead(id: string): Promise<void> {
-    const notification = this.notifications.get(id);
-    if (notification) {
-      notification.isRead = true;
-      this.notifications.set(id, notification);
-    }
+      .filter(notification => notification.user_id === user_id);
   }
 }
 
 // Firebase Admin configuration for server-side
-let db: FirebaseFirestore.Firestore;
+let db: FirebaseFirestore.Firestore | null = null;
+let initPromise: Promise<FirebaseFirestore.Firestore | null> | null = null;
 
-// Initialize Firebase Admin SDK if not already initialized
-if (!getApps().length) {
-  try {
-    // Try to initialize with service account (production)
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      : null;
-      
-    if (serviceAccount) {
-      initializeApp({
-        credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID,
-      });
+function tryInitializeFirestore(): Promise<FirebaseFirestore.Firestore | null> {
+  if (initPromise) return initPromise;
+  
+  initPromise = (async () => {
+    if (!getApps().length) {
+      try {
+        // Try to initialize with service account (production)
+        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
+          ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+          : null;
+          
+        if (serviceAccount && process.env.FIREBASE_PROJECT_ID) {
+          initializeApp({
+            credential: cert(serviceAccount),
+            projectId: process.env.FIREBASE_PROJECT_ID,
+          });
+        } else if (process.env.FIREBASE_PROJECT_ID) {
+          // Fallback for development with Application Default Credentials
+          initializeApp({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+          });
+        } else {
+          console.warn("No Firebase configuration found");
+          return null;
+        }
+        
+        const testDb = getFirestore();
+        
+        // Perform connectivity test
+        await testDb.collection('health').limit(1).get();
+        console.log("Firebase Firestore connected successfully");
+        db = testDb;
+        return testDb;
+      } catch (error) {
+        console.error("Firebase Admin initialization failed:", error);
+        return null;
+      }
     } else {
-      // Fallback for development - use project ID only
-      initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-      });
+      try {
+        const testDb = getFirestore();
+        await testDb.collection('health').limit(1).get();
+        db = testDb;
+        return testDb;
+      } catch (error) {
+        console.error("Firebase connectivity test failed:", error);
+        return null;
+      }
     }
-    db = getFirestore();
-  } catch (error) {
-    console.error("Firebase Admin initialization failed:", error);
-    // Fall back to a basic setup if available
-    db = getFirestore();
-  }
-} else {
-  db = getFirestore();
+  })();
+  
+  return initPromise;
 }
+
+async function ensureFirestore(): Promise<FirebaseFirestore.Firestore | null> {
+  if (db) return db;
+  return await tryInitializeFirestore();
+}
+
+export { ensureFirestore };
 
 export class FirestoreStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const userDoc = await db.collection("users").doc(id).get();
       return userDoc.exists ? userDoc.data() as User : undefined;
     } catch (error) {
@@ -317,6 +318,8 @@ export class FirestoreStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const querySnapshot = await db.collection("users").where("email", "==", email).get();
       return querySnapshot.empty ? undefined : querySnapshot.docs[0].data() as User;
     } catch (error) {
@@ -327,17 +330,17 @@ export class FirestoreStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const id = randomUUID();
       const user: User = { 
         ...insertUser,
-        department: insertUser.department ?? null,
+        dept: insertUser.dept ?? null,
         year: insertUser.year ?? null,
-        rollNumber: insertUser.rollNumber ?? null,
-        hostelStatus: insertUser.hostelStatus ?? null,
-        profilePicUrl: insertUser.profilePicUrl ?? null,
-        mentorId: insertUser.mentorId ?? null,
-        id,
-        createdAt: new Date().toISOString()
+        hostel_status: insertUser.hostel_status ?? null,
+        profile_pic_url: insertUser.profile_pic_url ?? null,
+        mentor_id: insertUser.mentor_id ?? null,
+        id
       };
       
       await db.collection("users").doc(id).set(user);
@@ -350,6 +353,8 @@ export class FirestoreStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       await db.collection("users").doc(id).update(updates);
       return await this.getUser(id);
     } catch (error) {
@@ -360,6 +365,8 @@ export class FirestoreStorage implements IStorage {
 
   async getUsersByRole(role: string): Promise<User[]> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const querySnapshot = await db.collection("users").where("role", "==", role).get();
       return querySnapshot.docs.map(doc => doc.data() as User);
     } catch (error) {
@@ -370,7 +377,9 @@ export class FirestoreStorage implements IStorage {
 
   async getUsersByDepartment(department: string): Promise<User[]> {
     try {
-      const querySnapshot = await db.collection("users").where("department", "==", department).get();
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      const querySnapshot = await db.collection("users").where("dept", "==", department).get();
       return querySnapshot.docs.map(doc => doc.data() as User);
     } catch (error) {
       console.error("Error getting users by department:", error);
@@ -381,19 +390,16 @@ export class FirestoreStorage implements IStorage {
   // Leave request operations
   async createLeaveRequest(insertRequest: InsertLeaveRequest): Promise<LeaveRequest> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const id = randomUUID();
       const request: LeaveRequest = {
         ...insertRequest,
-        emergencyContact: insertRequest.emergencyContact ?? null,
-        supportingDocs: insertRequest.supportingDocs ?? null,
-        isHostelStudent: insertRequest.isHostelStudent ?? null,
         id,
         status: "pending",
-        currentStage: "mentor",
-        approvals: [],
-        finalQrUrl: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        approver_stage: "mentor",
+        comments: null,
+        final_qr_url: null
       };
       
       await db.collection("leaveRequests").doc(id).set(request);
@@ -406,6 +412,8 @@ export class FirestoreStorage implements IStorage {
 
   async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const leaveDoc = await db.collection("leaveRequests").doc(id).get();
       return leaveDoc.exists ? leaveDoc.data() as LeaveRequest : undefined;
     } catch (error) {
@@ -416,11 +424,9 @@ export class FirestoreStorage implements IStorage {
 
   async updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
     try {
-      const updateData = { 
-        ...updates, 
-        updatedAt: new Date().toISOString() 
-      };
-      await db.collection("leaveRequests").doc(id).update(updateData);
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      await db.collection("leaveRequests").doc(id).update(updates);
       return await this.getLeaveRequest(id);
     } catch (error) {
       console.error("Error updating leave request:", error);
@@ -428,13 +434,12 @@ export class FirestoreStorage implements IStorage {
     }
   }
 
-  async getLeaveRequestsByStudent(studentId: string): Promise<LeaveRequest[]> {
+  async getLeaveRequestsByStudent(student_id: string): Promise<LeaveRequest[]> {
     try {
-      // Simplified query without orderBy to avoid composite index requirement
-      const querySnapshot = await db.collection("leaveRequests").where("studentId", "==", studentId).get();
-      const results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
-      // Sort in memory instead
-      return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      const querySnapshot = await db.collection("leaveRequests").where("student_id", "==", student_id).get();
+      return querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
     } catch (error) {
       console.error("Error getting leave requests by student:", error);
       return [];
@@ -443,9 +448,11 @@ export class FirestoreStorage implements IStorage {
 
   async getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       let query = db.collection("leaveRequests")
         .where("status", "==", "pending")
-        .where("currentStage", "==", stage);
+        .where("approver_stage", "==", stage);
       
       const querySnapshot = await query.get();
       let results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
@@ -463,19 +470,18 @@ export class FirestoreStorage implements IStorage {
     }
   }
 
-  async getCurrentLeaveRequest(studentId: string): Promise<LeaveRequest | undefined> {
+  async getCurrentLeaveRequest(student_id: string): Promise<LeaveRequest | undefined> {
     try {
-      // Simplified query without orderBy to avoid composite index requirement
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const querySnapshot = await db.collection("leaveRequests")
-        .where("studentId", "==", studentId)
+        .where("student_id", "==", student_id)
         .where("status", "==", "pending")
         .get();
       
       if (querySnapshot.empty) return undefined;
       
-      // Sort in memory and get the most recent
       const results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
-      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       return results[0];
     } catch (error) {
       console.error("Error getting current leave request:", error);
@@ -486,13 +492,13 @@ export class FirestoreStorage implements IStorage {
   // Notification operations
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
     try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
       const id = randomUUID();
       const notification: Notification = {
         ...insertNotification,
-        relatedLeaveId: insertNotification.relatedLeaveId ?? null,
         id,
-        isRead: false,
-        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
       
       await db.collection("notifications").doc(id).set(notification);
@@ -503,29 +509,33 @@ export class FirestoreStorage implements IStorage {
     }
   }
 
-  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+  async getNotificationsByUser(user_id: string): Promise<Notification[]> {
     try {
-      // Simplified query without orderBy to avoid composite index requirement
-      const querySnapshot = await db.collection("notifications").where("userId", "==", userId).get();
-      const results = querySnapshot.docs.map(doc => doc.data() as Notification);
-      // Sort in memory instead
-      return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      const querySnapshot = await db.collection("notifications").where("user_id", "==", user_id).get();
+      return querySnapshot.docs.map(doc => doc.data() as Notification);
     } catch (error) {
       console.error("Error getting notifications by user:", error);
       return [];
     }
   }
-
-  async markNotificationAsRead(id: string): Promise<void> {
-    try {
-      await db.collection("notifications").doc(id).update({ isRead: true });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-    }
-  }
 }
 
-// Export the appropriate storage based on environment
-export const storage = process.env.FIREBASE_PROJECT_ID 
-  ? new FirestoreStorage() 
-  : new MemStorage();
+// Create storage instance with proper initialization check
+async function createStorage(): Promise<IStorage> {
+  const firestore = await tryInitializeFirestore();
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction && !firestore) {
+    throw new Error("Firebase Firestore is required in production but initialization failed");
+  }
+  
+  const shouldUseFirestore = firestore !== null;
+  console.log(`Using storage: ${shouldUseFirestore ? 'Firestore' : 'Memory (development only)'}`);
+  
+  return shouldUseFirestore ? new FirestoreStorage() : new MemStorage();
+}
+
+// Export a promise that resolves to the appropriate storage
+export const storage = createStorage();
