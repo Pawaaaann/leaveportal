@@ -1,84 +1,101 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  role: text("role").notNull(), // Student, Mentor, HOD, Principal, Warden
-  department: text("department"),
-  year: text("year"),
-  rollNumber: text("roll_number"),
-  hostelStatus: text("hostel_status"),
-  profilePicUrl: text("profile_pic_url"),
-  mentorId: varchar("mentor_id"),
-  createdAt: text("created_at"),
-});
+// User interface and schemas
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string; // Student, Mentor, HOD, Principal, Warden
+  department: string | null;
+  year: string | null;
+  rollNumber: string | null;
+  hostelStatus: string | null;
+  profilePicUrl: string | null;
+  mentorId: string | null;
+  createdAt: string;
+}
 
-export const leaveRequests = pgTable("leave_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentId: varchar("student_id").notNull(),
-  leaveType: text("leave_type").notNull(),
-  reason: text("reason").notNull(),
-  fromDate: text("from_date").notNull(),
-  toDate: text("to_date").notNull(),
-  emergencyContact: text("emergency_contact"),
-  supportingDocs: text("supporting_docs"),
-  isHostelStudent: boolean("is_hostel_student").default(false),
-  status: text("status").notNull().default("pending"), // pending, approved, rejected
-  currentStage: text("current_stage").notNull().default("mentor"), // mentor, hod, principal, warden
-  approvals: jsonb("approvals").default([]), // Array of approval objects
-  finalQrUrl: text("final_qr_url"),
-  createdAt: text("created_at"),
-  updatedAt: text("updated_at"),
-});
-
-export const notifications = pgTable("notifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull(),
-  message: text("message").notNull(),
-  type: text("type").notNull(), // info, success, warning, error
-  isRead: boolean("is_read").default(false),
-  relatedLeaveId: varchar("related_leave_id"),
-  createdAt: text("created_at"),
-});
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  status: true,
-  currentStage: true,
-  approvals: true,
-  finalQrUrl: true,
-});
-
-export const insertNotificationSchema = createInsertSchema(notifications).omit({
-  id: true,
-  createdAt: true,
+export const insertUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1),
+  role: z.string(),
+  department: z.string().optional(),
+  year: z.string().optional(),
+  rollNumber: z.string().optional(),
+  hostelStatus: z.string().optional(),
+  profilePicUrl: z.string().optional(),
+  mentorId: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
-export type LeaveRequest = typeof leaveRequests.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type Notification = typeof notifications.$inferSelect;
+
+// Approval interface and schema
+export interface Approval {
+  stage: string;
+  approverId: string;
+  approverName: string;
+  status: "approve" | "reject";
+  comments?: string;
+  timestamp: string;
+}
 
 export const approvalSchema = z.object({
   stage: z.string(),
   approverId: z.string(),
-  approverName: z.string(),
-  status: z.enum(["approved", "rejected"]),
+  approverName: z.string(), 
+  status: z.enum(["approve", "reject"]),
   comments: z.string().optional(),
   timestamp: z.string(),
 });
 
-export type Approval = z.infer<typeof approvalSchema>;
+// Leave Request interface and schemas
+export interface LeaveRequest {
+  id: string;
+  studentId: string;
+  leaveType: string;
+  reason: string;
+  fromDate: string;
+  toDate: string;
+  emergencyContact: string | null;
+  supportingDocs: string | null;
+  isHostelStudent: boolean | null;
+  status: string; // pending, approved, rejected
+  currentStage: string; // mentor, hod, principal, warden
+  approvals: Approval[];
+  finalQrUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const insertLeaveRequestSchema = z.object({
+  studentId: z.string(),
+  leaveType: z.string(),
+  reason: z.string(),
+  fromDate: z.string(),
+  toDate: z.string(),
+  emergencyContact: z.string().optional(),
+  supportingDocs: z.string().optional(),
+  isHostelStudent: z.boolean().optional(),
+});
+
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+// Notification interface and schemas
+export interface Notification {
+  id: string;
+  userId: string;
+  message: string;
+  type: string; // info, success, warning, error
+  isRead: boolean;
+  relatedLeaveId: string | null;
+  createdAt: string;
+}
+
+export const insertNotificationSchema = z.object({
+  userId: z.string(),
+  message: z.string(),
+  type: z.string(),
+  relatedLeaveId: z.string().optional(),
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
