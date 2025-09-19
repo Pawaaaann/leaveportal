@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
+import AdminDashboard from "@/pages/admin-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import MentorDashboard from "@/pages/mentor-dashboard";
 import HODDashboard from "@/pages/hod-dashboard";
@@ -21,6 +22,8 @@ function DashboardRouter() {
   if (!userData) return null;
 
   switch (userData.role) {
+    case "Admin":
+      return <AdminDashboard />;
     case "Student":
       return <StudentDashboard />;
     case "Mentor":

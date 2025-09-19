@@ -11,10 +11,10 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { currentUser, login } = useAuth();
+  const { currentUser, userData, isAdmin, login } = useAuth();
   const { toast } = useToast();
 
-  if (currentUser) {
+  if (currentUser || isAdmin) {
     return <Redirect to="/dashboard" />;
   }
 
@@ -49,13 +49,14 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email/Username</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                placeholder="Enter email or 'admin' for admin access"
                 data-testid="input-email"
               />
             </div>

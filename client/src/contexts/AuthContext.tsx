@@ -7,6 +7,7 @@ import { User } from "@shared/schema";
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: User | null;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,9 +27,34 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   async function login(email: string, password: string) {
+    // Check for admin credentials first
+    if (email === "admin" && password === "admin1234") {
+      // Set admin user data
+      const adminUser: User = {
+        id: "admin",
+        name: "System Administrator",
+        email: "admin",
+        password: "admin1234",
+        role: "Admin",
+        dept: null,
+        year: null,
+        hostel_status: null,
+        profile_pic_url: null,
+        mentor_id: null,
+      };
+      
+      setUserData(adminUser);
+      setIsAdmin(true);
+      setCurrentUser(null); // Admin doesn't use Firebase
+      return;
+    }
+    
+    // Regular Firebase authentication for other users
+    setIsAdmin(false);
     await signInWithEmailAndPassword(auth, email, password);
   }
 
@@ -46,11 +72,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    await signOut(auth);
+    if (isAdmin) {
+      // Admin logout - just clear state
+      setIsAdmin(false);
+      setUserData(null);
+      setCurrentUser(null);
+    } else {
+      // Firebase logout for regular users
+      await signOut(auth);
+    }
   }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Don't override admin state with Firebase state changes
+      if (isAdmin) {
+        setLoading(false);
+        return;
+      }
+      
       setCurrentUser(user);
       
       if (user) {
@@ -61,17 +101,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserData(null);
+        setIsAdmin(false);
       }
       
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [isAdmin]);
 
   const value = {
     currentUser,
     userData,
+    isAdmin,
     login,
     register,
     logout,
