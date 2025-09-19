@@ -33,6 +33,103 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.leaveRequests = new Map();
     this.notifications = new Map();
+    this.initializeTestData();
+  }
+
+  private initializeTestData() {
+    // Create test users for different roles
+    const testUsers = [
+      {
+        id: "student-001",
+        email: "student@college.edu",
+        name: "John Student",
+        role: "Student",
+        department: "Computer Science",
+        year: "3rd Year",
+        rollNumber: "CS2021001",
+        hostelStatus: "Hostel A - Room 205",
+        profilePicUrl: null,
+        mentorId: "mentor-001",
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "mentor-001", 
+        email: "mentor@college.edu",
+        name: "Dr. Sarah Mentor",
+        role: "Mentor", 
+        department: "Computer Science",
+        year: null,
+        rollNumber: null,
+        hostelStatus: null,
+        profilePicUrl: null,
+        mentorId: null,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "hod-001",
+        email: "hod@college.edu", 
+        name: "Prof. Michael HOD",
+        role: "HOD",
+        department: "Computer Science",
+        year: null,
+        rollNumber: null,
+        hostelStatus: null,
+        profilePicUrl: null,
+        mentorId: null,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "principal-001",
+        email: "principal@college.edu",
+        name: "Dr. Jennifer Principal", 
+        role: "Principal",
+        department: null,
+        year: null,
+        rollNumber: null,
+        hostelStatus: null,
+        profilePicUrl: null,
+        mentorId: null,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: "warden-001",
+        email: "warden@college.edu",
+        name: "Mr. David Warden",
+        role: "Warden",
+        department: null,
+        year: null,
+        rollNumber: null,
+        hostelStatus: null,
+        profilePicUrl: null,
+        mentorId: null,
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    testUsers.forEach(user => {
+      this.users.set(user.id, user);
+    });
+
+    // Create a sample leave request for testing
+    const sampleLeaveRequest = {
+      id: "leave-001",
+      studentId: "student-001",
+      leaveType: "medical",
+      reason: "Medical checkup appointment",
+      fromDate: "2024-01-15",
+      toDate: "2024-01-16", 
+      emergencyContact: "+91-9876543210",
+      supportingDocs: null,
+      isHostelStudent: true,
+      status: "pending",
+      currentStage: "mentor",
+      approvals: [],
+      finalQrUrl: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.leaveRequests.set(sampleLeaveRequest.id, sampleLeaveRequest);
   }
 
   // User operations
