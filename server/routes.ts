@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeaveRequestSchema, approvalSchema } from "@shared/schema";
+import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } from "@shared/schema";
 import { generateQRCode } from "./services/qr-service";
 // import { generatePDF } from "./services/pdf-service";
 // import { createNotification } from "./services/notification-service";
@@ -12,11 +12,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/leave-requests", async (req, res) => {
     try {
       const validatedData = insertLeaveRequestSchema.parse(req.body);
-      const leaveRequest = await storage.createLeaveRequest(validatedData);
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.createLeaveRequest(validatedData);
       
       // Create notification for mentor
       // TODO: Implement notification service
-      console.log("New leave application submitted by student:", validatedData.studentId);
+      console.log("New leave application submitted by student:", validatedData.student_id);
       
       res.json(leaveRequest);
     } catch (error) {
@@ -26,7 +27,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/leave-requests/student/:studentId", async (req, res) => {
     try {
-      const applications = await storage.getLeaveRequestsByStudent(req.params.studentId);
+      const storageInstance = await storage;
+      const applications = await storageInstance.getLeaveRequestsByStudent(req.params.studentId);
       res.json(applications);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch applications" });
@@ -35,7 +37,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/leave-requests/current/:studentId", async (req, res) => {
     try {
-      const currentApplication = await storage.getCurrentLeaveRequest(req.params.studentId);
+      const storageInstance = await storage;
+      const currentApplication = await storageInstance.getCurrentLeaveRequest(req.params.studentId);
       res.json(currentApplication);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch current application" });
@@ -47,7 +50,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { stage } = req.params;
       const { department } = req.query;
       
-      const pendingApplications = await storage.getPendingLeaveRequestsByStage(
+      const storageInstance = await storage;
+      const pendingApplications = await storageInstance.getPendingLeaveRequestsByStage(
         stage, 
         department as string
       );
@@ -62,82 +66,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { action, comments } = req.body;
       
-      const leaveRequest = await storage.getLeaveRequest(id);
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.getLeaveRequest(id);
       if (!leaveRequest) {
         return res.status(404).json({ error: "Leave request not found" });
       }
 
-      // Create approval record
-      const approval = {
-        stage: leaveRequest.currentStage,
-        approverId: "current-user-id", // TODO: Get from auth context
-        approverName: "Current User", // TODO: Get from auth context
-        status: action,
-        comments: comments || "",
-        timestamp: new Date().toISOString(),
-      };
-
-      const currentApprovals = Array.isArray(leaveRequest.approvals) 
-        ? leaveRequest.approvals as any[] 
-        : [];
-
       if (action === "reject") {
         // If rejected, update status and stop workflow
-        await storage.updateLeaveRequest(id, {
+        await storageInstance.updateLeaveRequest(id, {
           status: "rejected",
-          approvals: [...currentApprovals, approval],
+          comments: comments || "Application rejected",
         });
 
         // Generate rejection QR code
         const qrData = {
-          studentId: leaveRequest.studentId,
+          student_id: leaveRequest.student_id,
           leaveId: id,
           status: "Not Approved",
-          rejectedBy: approval.approverName,
+          rejectedBy: "Current User", // TODO: Get from auth context
           rejectionReason: comments,
         };
         const qrUrl = await generateQRCode(qrData);
         
-        await storage.updateLeaveRequest(id, { finalQrUrl: qrUrl });
+        await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
       } else {
         // If approved, move to next stage or complete
         const stages = ["mentor", "hod", "principal"];
-        if (leaveRequest.isHostelStudent) {
+        
+        // Check if student is hostel student by looking up user info
+        const student = await storageInstance.getUser(leaveRequest.student_id);
+        if (student?.hostel_status) {
           stages.push("warden");
         }
 
-        const currentStageIndex = stages.indexOf(leaveRequest.currentStage);
+        const currentStageIndex = stages.indexOf(leaveRequest.approver_stage);
         const nextStageIndex = currentStageIndex + 1;
 
         if (nextStageIndex >= stages.length) {
           // Final approval - generate QR code
           const qrData = {
-            studentId: leaveRequest.studentId,
+            student_id: leaveRequest.student_id,
             leaveId: id,
             status: "Approved",
-            fromDate: leaveRequest.fromDate,
-            toDate: leaveRequest.toDate,
-            approvedBy: approval.approverName,
+            start_date: leaveRequest.start_date,
+            end_date: leaveRequest.end_date,
+            approvedBy: "Current User", // TODO: Get from auth context
           };
           const qrUrl = await generateQRCode(qrData);
 
-          await storage.updateLeaveRequest(id, {
+          await storageInstance.updateLeaveRequest(id, {
             status: "approved",
-            approvals: [...currentApprovals, approval],
-            finalQrUrl: qrUrl,
+            comments: comments || "Application approved",
+            final_qr_url: qrUrl,
           });
         } else {
           // Move to next stage
-          await storage.updateLeaveRequest(id, {
-            currentStage: stages[nextStageIndex],
-            approvals: [...currentApprovals, approval],
+          await storageInstance.updateLeaveRequest(id, {
+            approver_stage: stages[nextStageIndex],
+            comments: comments || `Approved by ${leaveRequest.approver_stage}`,
           });
         }
       }
 
       // Create notification for student
       // TODO: Implement notification service
-      console.log(`Leave application ${action}d for student:`, leaveRequest.studentId);
+      console.log(`Leave application ${action}d for student:`, leaveRequest.student_id);
 
       res.json({ success: true });
     } catch (error) {
@@ -148,7 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leave-requests/:id/pdf", async (req, res) => {
     try {
       const { id } = req.params;
-      const leaveRequest = await storage.getLeaveRequest(id);
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.getLeaveRequest(id);
       
       if (!leaveRequest) {
         return res.status(404).json({ error: "Leave request not found" });
@@ -169,7 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leave-requests/stats/:studentId", async (req, res) => {
     try {
       const { studentId } = req.params;
-      const applications = await storage.getLeaveRequestsByStudent(studentId);
+      const storageInstance = await storage;
+      const applications = await storageInstance.getLeaveRequestsByStudent(studentId);
       
       const stats = {
         total: applications.length,
@@ -179,8 +175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         daysUsed: applications
           .filter(app => app.status === "approved")
           .reduce((total, app) => {
-            const from = new Date(app.fromDate);
-            const to = new Date(app.toDate);
+            const from = new Date(app.start_date);
+            const to = new Date(app.end_date);
             const days = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             return total + days;
           }, 0),
@@ -193,9 +189,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
+  app.get("/api/users", async (req, res) => {
+    try {
+      const { role, department } = req.query;
+      const storageInstance = await storage;
+      
+      let users;
+      if (role) {
+        users = await storageInstance.getUsersByRole(role as string);
+      } else if (department) {
+        users = await storageInstance.getUsersByDepartment(department as string);
+      } else {
+        // For now, return users by role since we don't have a getAllUsers method
+        const roles = ["Student", "Mentor", "HOD", "Principal", "Warden"];
+        const allUsers = await Promise.all(
+          roles.map(r => storageInstance.getUsersByRole(r))
+        );
+        users = allUsers.flat();
+      }
+      
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Validate that role is one of the admin roles
+      const adminRoles = ["Mentor", "HOD", "Principal", "Warden"];
+      if (!adminRoles.includes(validatedData.role)) {
+        return res.status(400).json({ error: "Invalid role for admin user creation" });
+      }
+      
+      const storageInstance = await storage;
+      
+      // Check if user with email already exists
+      const existingUser = await storageInstance.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+      
+      const user = await storageInstance.createUser(validatedData);
+      res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid user data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create user" });
+      }
+    }
+  });
+
+  app.post("/api/users/register", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Ensure role is Student for self-registration
+      if (validatedData.role !== "Student") {
+        return res.status(400).json({ error: "Self-registration is only allowed for students" });
+      }
+      
+      const storageInstance = await storage;
+      
+      // Check if user with email already exists
+      const existingUser = await storageInstance.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+      
+      const user = await storageInstance.createUser(validatedData);
+      res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid user data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to register user" });
+      }
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
-      const user = await storage.getUser(req.params.id);
+      const storageInstance = await storage;
+      const user = await storageInstance.getUser(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -207,7 +286,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/users/:id", async (req, res) => {
     try {
-      const updatedUser = await storage.updateUser(req.params.id, req.body);
+      const storageInstance = await storage;
+      const updatedUser = await storageInstance.updateUser(req.params.id, req.body);
       if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -220,19 +300,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notifications routes
   app.get("/api/notifications/:userId", async (req, res) => {
     try {
-      const notifications = await storage.getNotificationsByUser(req.params.userId);
+      const storageInstance = await storage;
+      const notifications = await storageInstance.getNotificationsByUser(req.params.userId);
       res.json(notifications);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch notifications" });
     }
   });
 
-  app.put("/api/notifications/:id/read", async (req, res) => {
+  app.post("/api/notifications", async (req, res) => {
     try {
-      await storage.markNotificationAsRead(req.params.id);
-      res.json({ success: true });
+      const validatedData = insertNotificationSchema.parse(req.body);
+      const storageInstance = await storage;
+      const notification = await storageInstance.createNotification(validatedData);
+      res.json(notification);
     } catch (error) {
-      res.status(500).json({ error: "Failed to mark notification as read" });
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid notification data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create notification" });
+      }
     }
   });
 

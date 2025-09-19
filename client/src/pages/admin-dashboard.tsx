@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, FileText, UserCheck, Settings, Plus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { Users, FileText, UserCheck, Settings, Plus, Loader2 } from "lucide-react";
+import { User } from "@shared/schema";
 
 export default function AdminDashboard() {
   const { userData, logout } = useAuth();
+  const { toast } = useToast();
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
@@ -21,10 +27,54 @@ export default function AdminDashboard() {
     hostel_status: "",
   });
 
+  // Fetch all users
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: typeof newUser) => {
+      return await apiRequest("POST", "/api/users", userData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
+      // Reset form
+      setNewUser({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+        dept: "",
+        year: "",
+        hostel_status: "",
+      });
+      // Refresh users list
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement user creation via API
-    console.log("Creating user:", newUser);
+    if (!newUser.role) {
+      toast({
+        title: "Error",
+        description: "Please select a role",
+        variant: "destructive",
+      });
+      return;
+    }
+    createUserMutation.mutate(newUser);
   };
 
   return (
@@ -213,9 +263,43 @@ export default function AdminDashboard() {
                   <CardDescription>Manage all system users</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    No users found. Create some users to get started.
-                  </div>
+                  {usersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Loading users...</span>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No users found. Create some users to get started.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((user) => (
+                          <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{user.role}</Badge>
+                            </TableCell>
+                            <TableCell>{user.dept || "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">Active</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

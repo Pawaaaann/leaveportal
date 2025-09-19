@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +80,17 @@ export default function Login() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
+          
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              New student?{" "}
+              <Link href="/register">
+                <Button variant="link" className="p-0 h-auto font-normal" data-testid="link-register">
+                  Create your account
+                </Button>
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
