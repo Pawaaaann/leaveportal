@@ -1,19 +1,7 @@
 import { type User, type InsertUser, type LeaveRequest, type InsertLeaveRequest, type Notification, type InsertNotification } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  query, 
-  where, 
-  orderBy,
-  limit 
-} from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import { initializeApp } from "firebase/app";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 export interface IStorage {
   // User operations
@@ -283,24 +271,44 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Firebase configuration for server-side
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  appId: process.env.VITE_FIREBASE_APP_ID,
-};
+// Firebase Admin configuration for server-side
+let db: FirebaseFirestore.Firestore;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase Admin SDK if not already initialized
+if (!getApps().length) {
+  try {
+    // Try to initialize with service account (production)
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      : null;
+      
+    if (serviceAccount) {
+      initializeApp({
+        credential: cert(serviceAccount),
+        projectId: process.env.FIREBASE_PROJECT_ID,
+      });
+    } else {
+      // Fallback for development - use project ID only
+      initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+      });
+    }
+    db = getFirestore();
+  } catch (error) {
+    console.error("Firebase Admin initialization failed:", error);
+    // Fall back to a basic setup if available
+    db = getFirestore();
+  }
+} else {
+  db = getFirestore();
+}
 
 export class FirestoreStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     try {
-      const userDoc = await getDoc(doc(db, "users", id));
-      return userDoc.exists() ? userDoc.data() as User : undefined;
+      const userDoc = await db.collection("users").doc(id).get();
+      return userDoc.exists ? userDoc.data() as User : undefined;
     } catch (error) {
       console.error("Error getting user:", error);
       return undefined;
@@ -309,8 +317,7 @@ export class FirestoreStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      const q = query(collection(db, "users"), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await db.collection("users").where("email", "==", email).get();
       return querySnapshot.empty ? undefined : querySnapshot.docs[0].data() as User;
     } catch (error) {
       console.error("Error getting user by email:", error);
@@ -333,7 +340,7 @@ export class FirestoreStorage implements IStorage {
         createdAt: new Date().toISOString()
       };
       
-      await setDoc(doc(db, "users", id), user as any);
+      await db.collection("users").doc(id).set(user);
       return user;
     } catch (error) {
       console.error("Error creating user:", error);
@@ -343,8 +350,7 @@ export class FirestoreStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     try {
-      const userRef = doc(db, "users", id);
-      await updateDoc(userRef, updates as any);
+      await db.collection("users").doc(id).update(updates);
       return await this.getUser(id);
     } catch (error) {
       console.error("Error updating user:", error);
@@ -354,8 +360,7 @@ export class FirestoreStorage implements IStorage {
 
   async getUsersByRole(role: string): Promise<User[]> {
     try {
-      const q = query(collection(db, "users"), where("role", "==", role));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await db.collection("users").where("role", "==", role).get();
       return querySnapshot.docs.map(doc => doc.data() as User);
     } catch (error) {
       console.error("Error getting users by role:", error);
@@ -365,8 +370,7 @@ export class FirestoreStorage implements IStorage {
 
   async getUsersByDepartment(department: string): Promise<User[]> {
     try {
-      const q = query(collection(db, "users"), where("department", "==", department));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await db.collection("users").where("department", "==", department).get();
       return querySnapshot.docs.map(doc => doc.data() as User);
     } catch (error) {
       console.error("Error getting users by department:", error);
@@ -392,7 +396,7 @@ export class FirestoreStorage implements IStorage {
         updatedAt: new Date().toISOString(),
       };
       
-      await setDoc(doc(db, "leaveRequests", id), request as any);
+      await db.collection("leaveRequests").doc(id).set(request);
       return request;
     } catch (error) {
       console.error("Error creating leave request:", error);
@@ -402,8 +406,8 @@ export class FirestoreStorage implements IStorage {
 
   async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
     try {
-      const leaveDoc = await getDoc(doc(db, "leaveRequests", id));
-      return leaveDoc.exists() ? leaveDoc.data() as LeaveRequest : undefined;
+      const leaveDoc = await db.collection("leaveRequests").doc(id).get();
+      return leaveDoc.exists ? leaveDoc.data() as LeaveRequest : undefined;
     } catch (error) {
       console.error("Error getting leave request:", error);
       return undefined;
@@ -412,12 +416,11 @@ export class FirestoreStorage implements IStorage {
 
   async updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
     try {
-      const leaveRef = doc(db, "leaveRequests", id);
       const updateData = { 
         ...updates, 
         updatedAt: new Date().toISOString() 
       };
-      await updateDoc(leaveRef, updateData as any);
+      await db.collection("leaveRequests").doc(id).update(updateData);
       return await this.getLeaveRequest(id);
     } catch (error) {
       console.error("Error updating leave request:", error);
@@ -427,13 +430,11 @@ export class FirestoreStorage implements IStorage {
 
   async getLeaveRequestsByStudent(studentId: string): Promise<LeaveRequest[]> {
     try {
-      const q = query(
-        collection(db, "leaveRequests"), 
-        where("studentId", "==", studentId),
-        orderBy("createdAt", "desc")
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+      // Simplified query without orderBy to avoid composite index requirement
+      const querySnapshot = await db.collection("leaveRequests").where("studentId", "==", studentId).get();
+      const results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+      // Sort in memory instead
+      return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (error) {
       console.error("Error getting leave requests by student:", error);
       return [];
@@ -442,12 +443,11 @@ export class FirestoreStorage implements IStorage {
 
   async getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]> {
     try {
-      const q = query(
-        collection(db, "leaveRequests"),
-        where("status", "==", "pending"),
-        where("currentStage", "==", stage)
-      );
-      const querySnapshot = await getDocs(q);
+      let query = db.collection("leaveRequests")
+        .where("status", "==", "pending")
+        .where("currentStage", "==", stage);
+      
+      const querySnapshot = await query.get();
       let results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
       
       // Additional filtering can be done client-side for complex queries
@@ -465,15 +465,18 @@ export class FirestoreStorage implements IStorage {
 
   async getCurrentLeaveRequest(studentId: string): Promise<LeaveRequest | undefined> {
     try {
-      const q = query(
-        collection(db, "leaveRequests"),
-        where("studentId", "==", studentId),
-        where("status", "==", "pending"),
-        orderBy("createdAt", "desc"),
-        limit(1)
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.empty ? undefined : querySnapshot.docs[0].data() as LeaveRequest;
+      // Simplified query without orderBy to avoid composite index requirement
+      const querySnapshot = await db.collection("leaveRequests")
+        .where("studentId", "==", studentId)
+        .where("status", "==", "pending")
+        .get();
+      
+      if (querySnapshot.empty) return undefined;
+      
+      // Sort in memory and get the most recent
+      const results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return results[0];
     } catch (error) {
       console.error("Error getting current leave request:", error);
       return undefined;
@@ -492,7 +495,7 @@ export class FirestoreStorage implements IStorage {
         createdAt: new Date().toISOString(),
       };
       
-      await setDoc(doc(db, "notifications", id), notification as any);
+      await db.collection("notifications").doc(id).set(notification);
       return notification;
     } catch (error) {
       console.error("Error creating notification:", error);
@@ -502,13 +505,11 @@ export class FirestoreStorage implements IStorage {
 
   async getNotificationsByUser(userId: string): Promise<Notification[]> {
     try {
-      const q = query(
-        collection(db, "notifications"),
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc")
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => doc.data() as Notification);
+      // Simplified query without orderBy to avoid composite index requirement
+      const querySnapshot = await db.collection("notifications").where("userId", "==", userId).get();
+      const results = querySnapshot.docs.map(doc => doc.data() as Notification);
+      // Sort in memory instead
+      return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (error) {
       console.error("Error getting notifications by user:", error);
       return [];
@@ -517,12 +518,14 @@ export class FirestoreStorage implements IStorage {
 
   async markNotificationAsRead(id: string): Promise<void> {
     try {
-      const notificationRef = doc(db, "notifications", id);
-      await updateDoc(notificationRef, { isRead: true });
+      await db.collection("notifications").doc(id).update({ isRead: true });
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
   }
 }
 
-export const storage = new FirestoreStorage();
+// Export the appropriate storage based on environment
+export const storage = process.env.FIREBASE_PROJECT_ID 
+  ? new FirestoreStorage() 
+  : new MemStorage();
