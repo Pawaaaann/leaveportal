@@ -1,5 +1,19 @@
 import { type User, type InsertUser, type LeaveRequest, type InsertLeaveRequest, type Notification, type InsertNotification } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  orderBy,
+  limit 
+} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
+import { initializeApp } from "firebase/app";
 
 export interface IStorage {
   // User operations
@@ -269,4 +283,246 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Firebase configuration for server-side
+const firebaseConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+export class FirestoreStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    try {
+      const userDoc = await getDoc(doc(db, "users", id));
+      return userDoc.exists() ? userDoc.data() as User : undefined;
+    } catch (error) {
+      console.error("Error getting user:", error);
+      return undefined;
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    try {
+      const q = query(collection(db, "users"), where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.empty ? undefined : querySnapshot.docs[0].data() as User;
+    } catch (error) {
+      console.error("Error getting user by email:", error);
+      return undefined;
+    }
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    try {
+      const id = randomUUID();
+      const user: User = { 
+        ...insertUser,
+        department: insertUser.department ?? null,
+        year: insertUser.year ?? null,
+        rollNumber: insertUser.rollNumber ?? null,
+        hostelStatus: insertUser.hostelStatus ?? null,
+        profilePicUrl: insertUser.profilePicUrl ?? null,
+        mentorId: insertUser.mentorId ?? null,
+        id,
+        createdAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, "users", id), user as any);
+      return user;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw error;
+    }
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    try {
+      const userRef = doc(db, "users", id);
+      await updateDoc(userRef, updates as any);
+      return await this.getUser(id);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return undefined;
+    }
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    try {
+      const q = query(collection(db, "users"), where("role", "==", role));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data() as User);
+    } catch (error) {
+      console.error("Error getting users by role:", error);
+      return [];
+    }
+  }
+
+  async getUsersByDepartment(department: string): Promise<User[]> {
+    try {
+      const q = query(collection(db, "users"), where("department", "==", department));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data() as User);
+    } catch (error) {
+      console.error("Error getting users by department:", error);
+      return [];
+    }
+  }
+
+  // Leave request operations
+  async createLeaveRequest(insertRequest: InsertLeaveRequest): Promise<LeaveRequest> {
+    try {
+      const id = randomUUID();
+      const request: LeaveRequest = {
+        ...insertRequest,
+        emergencyContact: insertRequest.emergencyContact ?? null,
+        supportingDocs: insertRequest.supportingDocs ?? null,
+        isHostelStudent: insertRequest.isHostelStudent ?? null,
+        id,
+        status: "pending",
+        currentStage: "mentor",
+        approvals: [],
+        finalQrUrl: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await setDoc(doc(db, "leaveRequests", id), request as any);
+      return request;
+    } catch (error) {
+      console.error("Error creating leave request:", error);
+      throw error;
+    }
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    try {
+      const leaveDoc = await getDoc(doc(db, "leaveRequests", id));
+      return leaveDoc.exists() ? leaveDoc.data() as LeaveRequest : undefined;
+    } catch (error) {
+      console.error("Error getting leave request:", error);
+      return undefined;
+    }
+  }
+
+  async updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
+    try {
+      const leaveRef = doc(db, "leaveRequests", id);
+      const updateData = { 
+        ...updates, 
+        updatedAt: new Date().toISOString() 
+      };
+      await updateDoc(leaveRef, updateData as any);
+      return await this.getLeaveRequest(id);
+    } catch (error) {
+      console.error("Error updating leave request:", error);
+      return undefined;
+    }
+  }
+
+  async getLeaveRequestsByStudent(studentId: string): Promise<LeaveRequest[]> {
+    try {
+      const q = query(
+        collection(db, "leaveRequests"), 
+        where("studentId", "==", studentId),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+    } catch (error) {
+      console.error("Error getting leave requests by student:", error);
+      return [];
+    }
+  }
+
+  async getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]> {
+    try {
+      const q = query(
+        collection(db, "leaveRequests"),
+        where("status", "==", "pending"),
+        where("currentStage", "==", stage)
+      );
+      const querySnapshot = await getDocs(q);
+      let results = querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+      
+      // Additional filtering can be done client-side for complex queries
+      if (departmentFilter) {
+        // This would require joining with user data in a real scenario
+        results = results.filter(() => true); // Simplified for now
+      }
+      
+      return results;
+    } catch (error) {
+      console.error("Error getting pending leave requests:", error);
+      return [];
+    }
+  }
+
+  async getCurrentLeaveRequest(studentId: string): Promise<LeaveRequest | undefined> {
+    try {
+      const q = query(
+        collection(db, "leaveRequests"),
+        where("studentId", "==", studentId),
+        where("status", "==", "pending"),
+        orderBy("createdAt", "desc"),
+        limit(1)
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.empty ? undefined : querySnapshot.docs[0].data() as LeaveRequest;
+    } catch (error) {
+      console.error("Error getting current leave request:", error);
+      return undefined;
+    }
+  }
+
+  // Notification operations
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    try {
+      const id = randomUUID();
+      const notification: Notification = {
+        ...insertNotification,
+        relatedLeaveId: insertNotification.relatedLeaveId ?? null,
+        id,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+      
+      await setDoc(doc(db, "notifications", id), notification as any);
+      return notification;
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+  }
+
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => doc.data() as Notification);
+    } catch (error) {
+      console.error("Error getting notifications by user:", error);
+      return [];
+    }
+  }
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    try {
+      const notificationRef = doc(db, "notifications", id);
+      await updateDoc(notificationRef, { isRead: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  }
+}
+
+export const storage = new FirestoreStorage();

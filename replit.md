@@ -19,8 +19,7 @@ Preferred communication style: Simple, everyday language.
 ## Backend Architecture
 - **Runtime**: Node.js with Express server
 - **Language**: TypeScript with ES modules
-- **Database ORM**: Drizzle ORM with PostgreSQL dialect
-- **Session Management**: Express sessions with PostgreSQL storage via connect-pg-simple
+- **Database**: Firebase Firestore for cloud-based NoSQL data storage
 - **API Design**: RESTful API with centralized error handling and request logging middleware
 
 ## Authentication System
@@ -30,10 +29,10 @@ Preferred communication style: Simple, everyday language.
 - **Session Handling**: Firebase auth state persistence with Firestore user data storage
 
 ## Database Design
-- **Schema Structure**: Shared TypeScript schema definitions using Drizzle ORM
-- **Tables**: Users, Leave Requests, Notifications with proper relationships
-- **Data Validation**: Zod schemas for runtime validation matching database schema
-- **Migrations**: Drizzle Kit for database migrations and schema management
+- **Schema Structure**: Shared TypeScript interfaces with Zod validation schemas
+- **Collections**: Users, Leave Requests, Notifications stored in Firestore collections
+- **Data Validation**: Zod schemas for runtime validation and type safety
+- **Storage**: Firebase Firestore for cloud-based NoSQL document storage
 
 ## Multi-Stage Approval Workflow
 - **Sequential Approval**: Mentor → HOD → Principal → Warden (for hostel students)
