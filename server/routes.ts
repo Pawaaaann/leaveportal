@@ -381,13 +381,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await bcrypt.hash(validatedData.password, 10);
       const userData = { ...validatedData, password: hashedPassword };
       
+      // Create user in storage (Firestore or memory)
       const user = await storageInstance.createUser(userData);
+      
+      // Also create user in Firebase Authentication
+      let firebaseAuthCreated = false;
+      try {
+        const { getAuth } = await import('firebase-admin/auth');
+        const auth = getAuth();
+        
+        await auth.createUser({
+          uid: user.id,
+          email: user.email,
+          password: validatedData.password, // Use original password for Firebase Auth
+          displayName: user.name,
+        });
+        
+        firebaseAuthCreated = true;
+        console.log(`Student created in Firebase Auth: ${user.email}`);
+      } catch (firebaseError: any) {
+        console.error("Firebase Auth user creation failed:", firebaseError.message);
+        
+        // If Firebase is not properly configured, log a helpful message
+        if (firebaseError.message?.includes('Firebase Admin') || firebaseError.message?.includes('credential')) {
+          console.warn("Firebase Admin SDK not properly configured. User created in backend storage only.");
+        }
+      }
+      
       const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid user data", details: error.errors });
       } else {
+        console.error("Student registration error:", error);
         res.status(500).json({ error: "Failed to register user" });
       }
     }
