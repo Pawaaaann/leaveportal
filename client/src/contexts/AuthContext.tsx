@@ -8,7 +8,7 @@ interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: User | null;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, role: string) => Promise<void>;
   register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -30,9 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, role: string) {
+    // Validate role
+    const validRoles = ["Student", "Mentor", "HOD", "Principal", "Warden", "Admin"];
+    if (!validRoles.includes(role)) {
+      throw new Error("Invalid role selected");
+    }
+
     // Check for admin credentials first
-    if (email === "admin" && password === "admin1234") {
+    if (email === "admin" && password === "admin1234" && role === "Admin") {
       // Set admin user data
       const adminUser: User = {
         id: "admin",
@@ -53,9 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
+    // For non-admin roles, prevent admin credentials usage
+    if (email === "admin" && password === "admin1234" && role !== "Admin") {
+      throw new Error("Admin credentials can only be used with Admin role");
+    }
+    
     // Regular Firebase authentication for other users
     setIsAdmin(false);
     await signInWithEmailAndPassword(auth, email, password);
+    
+    // TODO: After Firebase authentication, validate that the user's role in Firestore matches the selected role
+    // This would require additional logic to check the user's stored role against the selected role
   }
 
   async function register(email: string, password: string, userData: Partial<User>) {

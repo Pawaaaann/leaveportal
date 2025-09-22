@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { currentUser, userData, isAdmin, login } = useAuth();
   const { toast } = useToast();
@@ -23,7 +25,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, role);
       toast({
         title: "Success",
         description: "Logged in successfully",
@@ -71,10 +73,26 @@ export default function Login() {
                 data-testid="input-password"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={role} onValueChange={setRole} required>
+                <SelectTrigger data-testid="select-role">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="Mentor">Mentor</SelectItem>
+                  <SelectItem value="HOD">HOD</SelectItem>
+                  <SelectItem value="Principal">Principal</SelectItem>
+                  <SelectItem value="Warden">Warden</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading}
+              disabled={isLoading || !role}
               data-testid="button-login"
             >
               {isLoading ? "Signing in..." : "Sign In"}
