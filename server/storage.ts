@@ -262,6 +262,27 @@ function tryInitializeFirestore(): Promise<FirebaseFirestore.Firestore | null> {
           : null;
           
         if (serviceAccount && process.env.FIREBASE_PROJECT_ID) {
+          // Fix private key formatting - handle various encoding issues
+          if (serviceAccount.private_key) {
+            let privateKey = serviceAccount.private_key;
+            
+            // Replace escaped newlines with actual newlines
+            privateKey = privateKey.replace(/\\n/g, '\n');
+            
+            // Ensure proper PEM format
+            if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+              console.warn('Private key does not start with proper PEM header');
+            }
+            if (!privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
+              if (!privateKey.endsWith('\n')) {
+                privateKey += '\n';
+              }
+            }
+            
+            serviceAccount.private_key = privateKey;
+          }
+          
+          console.log('Attempting to initialize Firebase with service account...');
           initializeApp({
             credential: cert(serviceAccount),
             projectId: process.env.FIREBASE_PROJECT_ID,
