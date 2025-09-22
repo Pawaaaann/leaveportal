@@ -8,6 +8,7 @@ interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: User | null;
   isAdmin: boolean;
+  isBackendAuth: boolean;
   login: (email: string, password: string, role: string) => Promise<void>;
   register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isBackendAuth, setIsBackendAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
   async function login(email: string, password: string, role: string) {
@@ -51,10 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hostel_status: null,
         profile_pic_url: null,
         mentor_id: null,
+        register_number: null,
       };
       
       setUserData(adminUser);
       setIsAdmin(true);
+      setIsBackendAuth(false);
       setCurrentUser(null); // Admin doesn't use Firebase
       return;
     }
@@ -64,30 +68,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Admin credentials can only be used with Admin role");
     }
     
-    // For non-admin users, check if user exists in backend storage
+    // For non-admin users, authenticate with backend storage
     try {
-      const response = await fetch('/api/users/validate', {
+      const response = await fetch('/api/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email, password, role }),
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'User validation failed');
+        throw new Error(errorData.error || 'Login failed');
       }
       
-      // Attempt Firebase authentication
+      const { user } = await response.json();
       setIsAdmin(false);
-      await signInWithEmailAndPassword(auth, email, password);
+      setIsBackendAuth(true);
+      setCurrentUser({ uid: user.id } as FirebaseUser); // Mock Firebase user
+      setUserData(user);
+      
+      // Store session in localStorage for persistence
+      localStorage.setItem('backendAuth', JSON.stringify({
+        user,
+        timestamp: Date.now()
+      }));
     } catch (error: any) {
-      // If it's a Firebase auth error, show appropriate message
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        throw new Error("Invalid email or password");
-      }
-      throw error;
+      throw new Error(error.message || "Invalid email or password");
     }
   }
 
@@ -110,6 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAdmin(false);
       setUserData(null);
       setCurrentUser(null);
+    } else if (isBackendAuth) {
+      // Backend auth logout - clear state and localStorage
+      setIsBackendAuth(false);
+      setUserData(null);
+      setCurrentUser(null);
+      localStorage.removeItem('backendAuth');
     } else {
       // Firebase logout for regular users
       await signOut(auth);
@@ -117,9 +131,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Check for existing backend auth session on load
+    const checkBackendAuth = () => {
+      const storedAuth = localStorage.getItem('backendAuth');
+      if (storedAuth) {
+        try {
+          const { user, timestamp } = JSON.parse(storedAuth);
+          // Check if session is still valid (24 hours)
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            setIsBackendAuth(true);
+            setCurrentUser({ uid: user.id } as FirebaseUser);
+            setUserData(user);
+            setLoading(false);
+            return true;
+          } else {
+            localStorage.removeItem('backendAuth');
+          }
+        } catch (error) {
+          localStorage.removeItem('backendAuth');
+        }
+      }
+      return false;
+    };
+
+    if (checkBackendAuth()) {
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Don't override admin state with Firebase state changes
-      if (isAdmin) {
+      // Don't override admin or backend auth state with Firebase state changes
+      if (isAdmin || isBackendAuth) {
         setLoading(false);
         return;
       }
@@ -141,12 +182,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return unsubscribe;
-  }, [isAdmin]);
+  }, [isAdmin, isBackendAuth]);
 
   const value = {
     currentUser,
     userData,
     isAdmin,
+    isBackendAuth,
     login,
     register,
     logout,

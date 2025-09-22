@@ -2,6 +2,7 @@ import { type User, type InsertUser, type LeaveRequest, type InsertLeaveRequest,
 import { randomUUID } from "crypto";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   // User operations
@@ -34,17 +35,18 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.leaveRequests = new Map();
     this.notifications = new Map();
-    this.initializeTestData();
+    this.initializeTestData().catch(console.error);
   }
 
-  private initializeTestData() {
-    // Create test users for different roles
+  private async initializeTestData() {
+    // Create test users for different roles with hashed passwords
+    const hashedPassword = await bcrypt.hash("password123", 10);
     const testUsers = [
       {
         id: "student-001",
         email: "student@college.edu",
         name: "John Student",
-        password: "password123",
+        password: hashedPassword,
         role: "Student",
         dept: "Computer Science",
         year: "3rd Year",
@@ -57,7 +59,7 @@ export class MemStorage implements IStorage {
         id: "mentor-001", 
         email: "mentor@college.edu",
         name: "Dr. Sarah Mentor",
-        password: "password123",
+        password: hashedPassword,
         role: "Mentor", 
         dept: "Computer Science",
         year: null,
@@ -70,7 +72,7 @@ export class MemStorage implements IStorage {
         id: "hod-001",
         email: "hod@college.edu", 
         name: "Prof. Michael HOD",
-        password: "password123",
+        password: hashedPassword,
         role: "HOD",
         dept: "Computer Science",
         year: null,
@@ -83,7 +85,7 @@ export class MemStorage implements IStorage {
         id: "principal-001",
         email: "principal@college.edu",
         name: "Dr. Jennifer Principal",
-        password: "password123", 
+        password: hashedPassword, 
         role: "Principal",
         dept: null,
         year: null,
@@ -96,7 +98,7 @@ export class MemStorage implements IStorage {
         id: "warden-001",
         email: "warden@college.edu",
         name: "Mr. David Warden",
-        password: "password123",
+        password: hashedPassword,
         role: "Warden",
         dept: null,
         year: null,

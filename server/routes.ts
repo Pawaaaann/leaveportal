@@ -6,6 +6,7 @@ import { generateQRCode } from "./services/qr-service";
 // import { generatePDF } from "./services/pdf-service";
 // import { createNotification } from "./services/notification-service";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Leave request routes
@@ -241,6 +242,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User login route with password validation
+  app.post("/api/users/login", async (req, res) => {
+    try {
+      const { email, password, role } = req.body;
+      
+      if (!email || !password || !role) {
+        return res.status(400).json({ error: "Email, password and role are required" });
+      }
+      
+      const storageInstance = await storage;
+      
+      // Check if user exists with this email
+      const user = await storageInstance.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Validate password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Validate that the selected role matches the user's stored role
+      if (user.role !== role) {
+        return res.status(400).json({ error: `Invalid role. Your account role is ${user.role}.` });
+      }
+      
+      // Return user data without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ success: true, user: userWithoutPassword });
+    } catch (error) {
+      console.error("User login error:", error);
+      res.status(500).json({ error: "Failed to login user" });
+    }
+  });
+
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
@@ -285,8 +323,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "User with this email already exists" });
       }
       
-      // Create user in storage (Firestore)
-      const user = await storageInstance.createUser(validatedData);
+      // Hash the password before storing
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+      const userData = { ...validatedData, password: hashedPassword };
+      
+      // Create user in storage with hashed password
+      const user = await storageInstance.createUser(userData);
       
       // Also create user in Firebase Authentication
       try {
@@ -296,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await auth.createUser({
           uid: user.id,
           email: user.email,
-          password: validatedData.password,
+          password: validatedData.password, // Use original password for Firebase Auth
           displayName: user.name,
         });
         
@@ -335,8 +377,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "User with this email already exists" });
       }
       
-      const user = await storageInstance.createUser(validatedData);
-      res.json(user);
+      // Hash the password before storing
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+      const userData = { ...validatedData, password: hashedPassword };
+      
+      const user = await storageInstance.createUser(userData);
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid user data", details: error.errors });
