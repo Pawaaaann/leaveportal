@@ -7,9 +7,10 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, isAdmin } = useAuth();
 
-  if (!currentUser) {
+  // Check if user is authenticated (either Firebase user or admin)
+  if (!currentUser && !isAdmin) {
     return <Redirect to="/login" />;
   }
 
