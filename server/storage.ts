@@ -560,7 +560,20 @@ async function createStorage(): Promise<IStorage> {
     throw new Error("Firebase Firestore is required in production but initialization failed");
   }
   
-  const shouldUseFirestore = firestore !== null;
+  let shouldUseFirestore = firestore !== null;
+  
+  // Test actual Firestore operations to ensure they work
+  if (shouldUseFirestore && firestore) {
+    try {
+      // Test a simple query to verify Firestore operations work
+      await firestore.collection('health').limit(1).get();
+      console.log("Firestore operations test successful");
+    } catch (error: any) {
+      console.warn("Firestore operations failed, falling back to memory storage:", error.message);
+      shouldUseFirestore = false;
+    }
+  }
+  
   console.log(`Using storage: ${shouldUseFirestore ? 'Firestore' : 'Memory (development only)'}`);
   
   return shouldUseFirestore ? new FirestoreStorage() : new MemStorage();
