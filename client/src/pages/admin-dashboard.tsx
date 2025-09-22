@@ -14,6 +14,28 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, FileText, UserCheck, Settings, Plus, Loader2 } from "lucide-react";
 import { User } from "@shared/schema";
 
+// Department options for dropdowns
+const DEPARTMENTS = [
+  "Computer Science",
+  "Information Technology", 
+  "Electronics & Communication",
+  "Electrical Engineering",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "Chemical Engineering",
+  "Mathematics",
+  "Physics",
+  "Chemistry"
+];
+
+// Year options for dropdowns
+const YEARS = [
+  "1st Year",
+  "2nd Year", 
+  "3rd Year",
+  "4th Year"
+];
+
 export default function AdminDashboard() {
   const { userData, logout } = useAuth();
   const { toast } = useToast();
@@ -79,6 +101,37 @@ export default function AdminDashboard() {
       });
       return;
     }
+    
+    // Validate Mentor-specific fields
+    if (newUser.role === "Mentor") {
+      if (!newUser.dept) {
+        toast({
+          title: "Error",
+          description: "Please select a department for Mentor role",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!newUser.year) {
+        toast({
+          title: "Error", 
+          description: "Please select a year for Mentor role",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Validate HOD department requirement
+    if (newUser.role === "HOD" && !newUser.dept) {
+      toast({
+        title: "Error",
+        description: "Please select a department for HOD role",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createUserMutation.mutate(newUser);
   };
 
@@ -235,7 +288,18 @@ export default function AdminDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="role">Role</Label>
-                        <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                        <Select value={newUser.role || undefined} onValueChange={(value) => {
+                          const updatedUser = { ...newUser, role: value };
+                          // Clear year if role is not Mentor
+                          if (value !== "Mentor") {
+                            updatedUser.year = "";
+                          }
+                          // Clear dept if role doesn't need department
+                          if (value !== "Mentor" && value !== "HOD") {
+                            updatedUser.dept = "";
+                          }
+                          setNewUser(updatedUser);
+                        }}>
                           <SelectTrigger data-testid="select-role">
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
@@ -247,16 +311,38 @@ export default function AdminDashboard() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="dept">Department</Label>
-                        <Input
-                          id="dept"
-                          value={newUser.dept}
-                          onChange={(e) => setNewUser({ ...newUser, dept: e.target.value })}
-                          placeholder="Enter department"
-                          data-testid="input-dept"
-                        />
-                      </div>
+                      {/* Department field for Mentor and HOD roles */}
+                      {(newUser.role === "Mentor" || newUser.role === "HOD") && (
+                        <div className="space-y-2">
+                          <Label htmlFor="dept">Department</Label>
+                          <Select value={newUser.dept || undefined} onValueChange={(value) => setNewUser({ ...newUser, dept: value })}>
+                            <SelectTrigger data-testid="select-dept">
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEPARTMENTS.map((dept) => (
+                                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      {/* Year field only for Mentor role */}
+                      {newUser.role === "Mentor" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="year">Year</Label>
+                          <Select value={newUser.year || undefined} onValueChange={(value) => setNewUser({ ...newUser, year: value })}>
+                            <SelectTrigger data-testid="select-year">
+                              <SelectValue placeholder="Select year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {YEARS.map((year) => (
+                                <SelectItem key={year} value={year}>{year}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                     <Button type="submit" className="w-full" data-testid="button-create-user">
                       Create User
