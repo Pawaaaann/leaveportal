@@ -50,7 +50,8 @@ export class MemStorage implements IStorage {
         year: "3rd Year",
         hostel_status: "Hostel A - Room 205",
         profile_pic_url: null,
-        mentor_id: "mentor-001"
+        mentor_id: "mentor-001",
+        register_number: "CS20230001"
       },
       {
         id: "mentor-001", 
@@ -62,7 +63,8 @@ export class MemStorage implements IStorage {
         year: null,
         hostel_status: null,
         profile_pic_url: null,
-        mentor_id: null
+        mentor_id: null,
+        register_number: null
       },
       {
         id: "hod-001",
@@ -74,7 +76,8 @@ export class MemStorage implements IStorage {
         year: null,
         hostel_status: null,
         profile_pic_url: null,
-        mentor_id: null
+        mentor_id: null,
+        register_number: null
       },
       {
         id: "principal-001",
@@ -86,7 +89,8 @@ export class MemStorage implements IStorage {
         year: null,
         hostel_status: null,
         profile_pic_url: null,
-        mentor_id: null
+        mentor_id: null,
+        register_number: null
       },
       {
         id: "warden-001",
@@ -98,7 +102,8 @@ export class MemStorage implements IStorage {
         year: null,
         hostel_status: null,
         profile_pic_url: null,
-        mentor_id: null
+        mentor_id: null,
+        register_number: null
       }
     ];
 
@@ -140,6 +145,7 @@ export class MemStorage implements IStorage {
       hostel_status: insertUser.hostel_status ?? null,
       profile_pic_url: insertUser.profile_pic_url ?? null,
       mentor_id: insertUser.mentor_id ?? null,
+      register_number: insertUser.register_number ?? null,
       id
     };
     this.users.set(id, user);
@@ -340,6 +346,7 @@ export class FirestoreStorage implements IStorage {
         hostel_status: insertUser.hostel_status ?? null,
         profile_pic_url: insertUser.profile_pic_url ?? null,
         mentor_id: insertUser.mentor_id ?? null,
+        register_number: insertUser.register_number ?? null,
         id
       };
       

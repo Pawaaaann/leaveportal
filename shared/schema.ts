@@ -12,6 +12,7 @@ export interface User {
   hostel_status: string | null;
   profile_pic_url: string | null;
   mentor_id: string | null;
+  register_number: string | null;
 }
 
 export const insertUserSchema = z.object({
@@ -24,6 +25,7 @@ export const insertUserSchema = z.object({
   hostel_status: z.string().optional(),
   profile_pic_url: z.string().optional(),
   mentor_id: z.string().optional(),
+  register_number: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
