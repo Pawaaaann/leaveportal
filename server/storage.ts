@@ -266,20 +266,53 @@ function tryInitializeFirestore(): Promise<FirebaseFirestore.Firestore | null> {
           if (serviceAccount.private_key) {
             let privateKey = serviceAccount.private_key;
             
-            // Replace escaped newlines with actual newlines
+            // First, handle double-escaped newlines that sometimes occur
+            privateKey = privateKey.replace(/\\\\n/g, '\n');
+            // Then handle single-escaped newlines
             privateKey = privateKey.replace(/\\n/g, '\n');
             
-            // Ensure proper PEM format
+            // Remove any extra whitespace
+            privateKey = privateKey.trim();
+            
+            // If the private key is all on one line, we need to format it properly
+            if (!privateKey.includes('\n') && privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+              // Split the key into proper PEM format with 64-character lines
+              const header = '-----BEGIN PRIVATE KEY-----';
+              const footer = '-----END PRIVATE KEY-----';
+              
+              // Extract just the key content between the header and footer
+              const keyContent = privateKey
+                .replace(header, '')
+                .replace(footer, '')
+                .replace(/\s/g, ''); // Remove all whitespace
+              
+              // Format key content into 64-character lines
+              const formattedLines = [];
+              for (let i = 0; i < keyContent.length; i += 64) {
+                formattedLines.push(keyContent.slice(i, i + 64));
+              }
+              
+              // Reconstruct the properly formatted key
+              privateKey = header + '\n' + formattedLines.join('\n') + '\n' + footer + '\n';
+              console.log('Reformatted private key to proper PEM format');
+            }
+            
+            // Ensure proper PEM format with correct line endings
             if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
               console.warn('Private key does not start with proper PEM header');
             }
+            
+            // Ensure it ends properly
             if (!privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
-              if (!privateKey.endsWith('\n')) {
+              if (privateKey.endsWith('-----END PRIVATE KEY-----')) {
                 privateKey += '\n';
+              } else {
+                console.warn('Private key does not end with proper PEM footer');
               }
             }
             
             serviceAccount.private_key = privateKey;
+            console.log('Private key formatting applied - length:', privateKey.length, 'lines:', privateKey.split('\n').length);
           }
           
           console.log('Attempting to initialize Firebase with service account...');
