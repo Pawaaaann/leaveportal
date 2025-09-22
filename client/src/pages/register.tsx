@@ -20,6 +20,7 @@ export default function Register() {
     dept: "",
     year: "",
     hostel_status: "",
+    register_number: "",
   });
   const { currentUser, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -47,6 +48,7 @@ export default function Register() {
         dept: "",
         year: "",
         hostel_status: "",
+        register_number: "",
       });
     },
     onError: (error: any) => {
@@ -60,7 +62,7 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.dept || !formData.year) {
+    if (!formData.dept || !formData.year || !formData.register_number) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -115,6 +117,17 @@ export default function Register() {
                   required
                   minLength={6}
                   data-testid="input-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register_number">Register Number *</Label>
+                <Input
+                  id="register_number"
+                  value={formData.register_number}
+                  onChange={(e) => setFormData({ ...formData, register_number: e.target.value })}
+                  placeholder="Enter your register number"
+                  required
+                  data-testid="input-register-number"
                 />
               </div>
               <div className="space-y-2">
