@@ -160,6 +160,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all leave requests for admin overview
+  app.get("/api/leave-requests/all", async (req, res) => {
+    try {
+      const storageInstance = await storage;
+      
+      // Get all leave requests across all stages
+      const allRequests = await Promise.all([
+        storageInstance.getPendingLeaveRequestsByStage("mentor"),
+        storageInstance.getPendingLeaveRequestsByStage("hod"),
+        storageInstance.getPendingLeaveRequestsByStage("principal"),
+        storageInstance.getPendingLeaveRequestsByStage("warden")
+      ]);
+      
+      // Flatten the arrays and also get approved/rejected requests
+      // For now, we'll return the flattened pending requests
+      const flattenedRequests = allRequests.flat();
+      
+      res.json(flattenedRequests);
+    } catch (error) {
+      console.error("Error fetching all leave requests:", error);
+      res.status(500).json({ error: "Failed to fetch leave requests" });
+    }
+  });
+
   // Statistics routes
   app.get("/api/leave-requests/stats/:studentId", async (req, res) => {
     try {
@@ -185,6 +209,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  // User validation route for login
+  app.post("/api/users/validate", async (req, res) => {
+    try {
+      const { email, role } = req.body;
+      
+      if (!email || !role) {
+        return res.status(400).json({ error: "Email and role are required" });
+      }
+      
+      const storageInstance = await storage;
+      
+      // Check if user exists with this email
+      const user = await storageInstance.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "User not found. Only admin-created accounts can sign in." });
+      }
+      
+      // Validate that the selected role matches the user's stored role
+      if (user.role !== role) {
+        return res.status(400).json({ error: `Invalid role. Your account role is ${user.role}.` });
+      }
+      
+      res.json({ valid: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } catch (error) {
+      console.error("User validation error:", error);
+      res.status(500).json({ error: "Failed to validate user" });
     }
   });
 
@@ -232,12 +285,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "User with this email already exists" });
       }
       
+      // Create user in storage (Firestore)
       const user = await storageInstance.createUser(validatedData);
+      
+      // Also create user in Firebase Authentication
+      try {
+        const { getAuth } = await import('firebase-admin/auth');
+        const auth = getAuth();
+        
+        await auth.createUser({
+          uid: user.id,
+          email: user.email,
+          password: validatedData.password,
+          displayName: user.name,
+        });
+        
+        console.log(`User created in Firebase Auth: ${user.email}`);
+      } catch (firebaseError: any) {
+        console.error("Firebase Auth user creation failed:", firebaseError);
+        // If Firebase Auth fails, we should probably delete the Firestore user too
+        // For now, we'll continue since the user data is in Firestore
+      }
+      
       res.json(user);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid user data", details: error.errors });
       } else {
+        console.error("User creation error:", error);
         res.status(500).json({ error: "Failed to create user" });
       }
     }

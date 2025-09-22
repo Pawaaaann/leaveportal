@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { User } from "@shared/schema";
 
@@ -64,12 +64,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Admin credentials can only be used with Admin role");
     }
     
-    // Regular Firebase authentication for other users
-    setIsAdmin(false);
-    await signInWithEmailAndPassword(auth, email, password);
-    
-    // TODO: After Firebase authentication, validate that the user's role in Firestore matches the selected role
-    // This would require additional logic to check the user's stored role against the selected role
+    // For non-admin users, check if user exists in backend storage
+    try {
+      const response = await fetch('/api/users/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, role }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'User validation failed');
+      }
+      
+      // Attempt Firebase authentication
+      setIsAdmin(false);
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      // If it's a Firebase auth error, show appropriate message
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        throw new Error("Invalid email or password");
+      }
+      throw error;
+    }
   }
 
   async function register(email: string, password: string, userData: Partial<User>) {

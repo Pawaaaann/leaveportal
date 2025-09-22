@@ -32,6 +32,11 @@ export default function AdminDashboard() {
     queryKey: ["/api/users"],
   });
 
+  // Fetch all leave requests for admin overview
+  const { data: allLeaveRequests = [], isLoading: leaveRequestsLoading } = useQuery<any[]>({
+    queryKey: ["/api/leave-requests/all"],
+  });
+
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
@@ -137,7 +142,7 @@ export default function AdminDashboard() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">0</div>
+                    <div className="text-2xl font-bold">{users.length}</div>
                     <p className="text-xs text-muted-foreground">All registered users</p>
                   </CardContent>
                 </Card>
@@ -147,7 +152,7 @@ export default function AdminDashboard() {
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">0</div>
+                    <div className="text-2xl font-bold">{allLeaveRequests.filter(req => req.status === 'pending').length}</div>
                     <p className="text-xs text-muted-foreground">Awaiting approval</p>
                   </CardContent>
                 </Card>
@@ -157,7 +162,7 @@ export default function AdminDashboard() {
                     <UserCheck className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">0</div>
+                    <div className="text-2xl font-bold">{allLeaveRequests.filter(req => req.status === 'approved').length}</div>
                     <p className="text-xs text-muted-foreground">This month</p>
                   </CardContent>
                 </Card>
@@ -167,7 +172,11 @@ export default function AdminDashboard() {
                     <Settings className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">0%</div>
+                    <div className="text-2xl font-bold">
+                      {allLeaveRequests.length > 0 
+                        ? Math.round((allLeaveRequests.filter(req => req.status === 'rejected').length / allLeaveRequests.length) * 100)
+                        : 0}%
+                    </div>
                     <p className="text-xs text-muted-foreground">This month</p>
                   </CardContent>
                 </Card>
@@ -312,9 +321,58 @@ export default function AdminDashboard() {
                   <CardDescription>Monitor all leave requests across departments</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    No leave requests found. Users can submit leave requests once they're created.
-                  </div>
+                  {leaveRequestsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Loading leave requests...</span>
+                    </div>
+                  ) : allLeaveRequests.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No leave requests found. Users can submit leave requests once they're created.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student ID</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Start Date</TableHead>
+                          <TableHead>End Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Current Stage</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allLeaveRequests.map((request) => (
+                          <TableRow key={request.id} data-testid={`row-leave-${request.id}`}>
+                            <TableCell className="font-medium">{request.student_id}</TableCell>
+                            <TableCell>{request.reason}</TableCell>
+                            <TableCell>{request.start_date}</TableCell>
+                            <TableCell>{request.end_date}</TableCell>
+                            <TableCell>
+                              <Badge variant={request.status === 'approved' ? 'default' : request.status === 'rejected' ? 'destructive' : 'secondary'}>
+                                {request.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{request.approver_stage}</TableCell>
+                            <TableCell>
+                              {request.status === 'pending' && (
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" className="text-green-600">
+                                    Approve
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="text-red-600">
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
