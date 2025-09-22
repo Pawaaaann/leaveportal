@@ -55,7 +55,7 @@ export default function StudentDashboard() {
                   {userData?.name}
                 </p>
                 <p className="text-xs text-muted-foreground" data-testid="text-header-roll">
-                  {userData?.rollNumber}
+                  {userData?.email}
                 </p>
               </div>
             </div>
@@ -89,14 +89,14 @@ export default function StudentDashboard() {
                       {userData?.name}
                     </p>
                     <p className="text-sm text-muted-foreground" data-testid="text-student-roll">
-                      Roll No: {userData?.rollNumber}
+                      Email: {userData?.email}
                     </p>
                   </div>
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Department:</span>
                       <span className="text-sm font-medium" data-testid="text-student-department">
-                        {userData?.department}
+                        {userData?.dept}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -108,7 +108,7 @@ export default function StudentDashboard() {
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Hostel:</span>
                       <span className="text-sm font-medium" data-testid="text-student-hostel">
-                        {userData?.hostelStatus || "Day Scholar"}
+                        {userData?.hostel_status || "Day Scholar"}
                       </span>
                     </div>
                   </div>
@@ -175,7 +175,7 @@ export default function StudentDashboard() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Application ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Leave Type</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reason</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date Range</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Current Stage</th>
@@ -192,16 +192,16 @@ export default function StudentDashboard() {
                     applications.map((app) => (
                       <tr key={app.id} className="border-b border-border hover:bg-muted/50" data-testid={`row-application-${app.id}`}>
                         <td className="py-3 px-4 text-sm font-medium text-foreground">#{app.id?.slice(-6)}</td>
-                        <td className="py-3 px-4 text-sm text-foreground">{app.leaveType}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">{app.reason}</td>
                         <td className="py-3 px-4 text-sm text-foreground">
-                          {new Date(app.fromDate).toLocaleDateString()} - {new Date(app.toDate).toLocaleDateString()}
+                          {new Date(app.start_date).toLocaleDateString()} - {new Date(app.end_date).toLocaleDateString()}
                         </td>
                         <td className="py-3 px-4">
                           <Badge variant={getStatusVariant(app.status)}>
                             {app.status}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-sm text-foreground">{app.currentStage}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">{app.approver_stage}</td>
                       </tr>
                     ))
                   )}

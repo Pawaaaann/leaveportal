@@ -9,13 +9,13 @@ export default function HODDashboard() {
   const { userData } = useAuth();
 
   const { data: pendingApplications = [], isLoading } = useQuery<LeaveRequest[]>({
-    queryKey: ["/api/leave-requests", "pending", "hod", userData?.department],
-    enabled: !!userData?.department,
+    queryKey: ["/api/leave-requests", "pending", "hod", userData?.dept],
+    enabled: !!userData?.dept,
   });
 
   const { data: stats } = useQuery<{pending: number, approved: number, rejected: number, departmentStudents: number}>({
-    queryKey: ["/api/leave-requests", "hod-stats", userData?.department],
-    enabled: !!userData?.department,
+    queryKey: ["/api/leave-requests", "hod-stats", userData?.dept],
+    enabled: !!userData?.dept,
   });
 
   return (
