@@ -39,6 +39,7 @@ const YEARS = [
 export default function AdminDashboard() {
   const { userData, logout } = useAuth();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
@@ -158,19 +159,39 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         <nav className="w-64 border-r bg-card p-4">
           <div className="space-y-2">
-            <Button variant="ghost" className="w-full justify-start" data-testid="nav-overview">
+            <Button 
+              variant={activeTab === "overview" ? "default" : "ghost"}
+              className="w-full justify-start" 
+              data-testid="nav-overview"
+              onClick={() => setActiveTab("overview")}
+            >
               <FileText className="mr-2 h-4 w-4" />
               Overview
             </Button>
-            <Button variant="ghost" className="w-full justify-start" data-testid="nav-users">
+            <Button 
+              variant={activeTab === "users" ? "default" : "ghost"}
+              className="w-full justify-start" 
+              data-testid="nav-users"
+              onClick={() => setActiveTab("users")}
+            >
               <Users className="mr-2 h-4 w-4" />
               User Management
             </Button>
-            <Button variant="ghost" className="w-full justify-start" data-testid="nav-leaves">
+            <Button 
+              variant={activeTab === "leaves" ? "default" : "ghost"}
+              className="w-full justify-start" 
+              data-testid="nav-leaves"
+              onClick={() => setActiveTab("leaves")}
+            >
               <UserCheck className="mr-2 h-4 w-4" />
               Leave Requests
             </Button>
-            <Button variant="ghost" className="w-full justify-start" data-testid="nav-settings">
+            <Button 
+              variant={activeTab === "settings" ? "default" : "ghost"}
+              className="w-full justify-start" 
+              data-testid="nav-settings"
+              onClick={() => setActiveTab("settings")}
+            >
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </Button>
@@ -179,7 +200,7 @@ export default function AdminDashboard() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList>
               <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
               <TabsTrigger value="users" data-testid="tab-users">User Management</TabsTrigger>
@@ -459,6 +480,64 @@ export default function AdminDashboard() {
                       </TableBody>
                     </Table>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-6">
+              <Card data-testid="card-settings">
+                <CardHeader>
+                  <CardTitle>System Settings</CardTitle>
+                  <CardDescription>Configure system preferences and settings</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">General Settings</h3>
+                      <div className="space-y-2">
+                        <Label>System Timezone</Label>
+                        <Select defaultValue="UTC">
+                          <SelectTrigger data-testid="select-timezone">
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                            <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
+                            <SelectItem value="America/New_York">America/New_York</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Leave Management</h3>
+                      <div className="space-y-2">
+                        <Label>Default Leave Duration (days)</Label>
+                        <Input type="number" defaultValue="7" data-testid="input-leave-duration" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Maximum Leave Duration (days)</Label>
+                        <Input type="number" defaultValue="30" data-testid="input-max-leave" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Notifications</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input type="checkbox" id="email-notifications" defaultChecked />
+                          <Label htmlFor="email-notifications">Enable email notifications</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input type="checkbox" id="sms-notifications" />
+                          <Label htmlFor="sms-notifications">Enable SMS notifications</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button data-testid="button-save-settings">Save Settings</Button>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
