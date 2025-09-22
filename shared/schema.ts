@@ -34,20 +34,30 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export interface LeaveRequest {
   id: string;
   student_id: string;
+  leave_type: string;
   reason: string;
   start_date: string;
   end_date: string;
+  guardian_phone: string;
+  emergency_contact: string;
+  supporting_docs: string | null;
+  is_hostel_student: boolean;
   status: string; // pending, approved, rejected
-  approver_stage: string; // mentor, hod, principal, warden
+  approver_stage: string; // guardian, mentor, hod, principal, warden
   comments: string | null;
   final_qr_url: string | null;
 }
 
 export const insertLeaveRequestSchema = z.object({
   student_id: z.string(),
+  leave_type: z.string(),
   reason: z.string(),
   start_date: z.string(),
   end_date: z.string(),
+  guardian_phone: z.string().min(10, "Guardian phone number is required"),
+  emergency_contact: z.string().optional(),
+  supporting_docs: z.string().optional(),
+  is_hostel_student: z.boolean().optional(),
 });
 
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;

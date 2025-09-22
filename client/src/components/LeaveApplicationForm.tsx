@@ -15,10 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { z } from "zod";
 
-const formSchema = insertLeaveRequestSchema.extend({
-  fromDate: z.string().min(1, "From date is required"),
-  toDate: z.string().min(1, "To date is required"),
-});
+const formSchema = insertLeaveRequestSchema;
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -30,14 +27,15 @@ export default function LeaveApplicationForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      studentId: userData?.id || "",
-      leaveType: "",
+      student_id: userData?.id || "",
+      leave_type: "",
       reason: "",
-      fromDate: "",
-      toDate: "",
-      emergencyContact: "",
-      supportingDocs: "",
-      isHostelStudent: false,
+      start_date: "",
+      end_date: "",
+      guardian_phone: "",
+      emergency_contact: "",
+      supporting_docs: "",
+      is_hostel_student: false,
     },
   });
 
@@ -79,8 +77,8 @@ export default function LeaveApplicationForm() {
           <div className="space-y-2">
             <Label htmlFor="leaveType">Leave Type</Label>
             <Select 
-              value={form.watch("leaveType")} 
-              onValueChange={(value) => form.setValue("leaveType", value)}
+              value={form.watch("leave_type")} 
+              onValueChange={(value) => form.setValue("leave_type", value)}
             >
               <SelectTrigger data-testid="select-leave-type">
                 <SelectValue placeholder="Select leave type" />
@@ -92,35 +90,35 @@ export default function LeaveApplicationForm() {
                 <SelectItem value="family">Family Function</SelectItem>
               </SelectContent>
             </Select>
-            {form.formState.errors.leaveType && (
-              <p className="text-sm text-destructive">{form.formState.errors.leaveType.message}</p>
+            {form.formState.errors.leave_type && (
+              <p className="text-sm text-destructive">{form.formState.errors.leave_type.message}</p>
             )}
           </div>
 
           {/* Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fromDate">From Date</Label>
+              <Label htmlFor="start_date">From Date</Label>
               <Input
-                id="fromDate"
+                id="start_date"
                 type="date"
-                {...form.register("fromDate")}
+                {...form.register("start_date")}
                 data-testid="input-from-date"
               />
-              {form.formState.errors.fromDate && (
-                <p className="text-sm text-destructive">{form.formState.errors.fromDate.message}</p>
+              {form.formState.errors.start_date && (
+                <p className="text-sm text-destructive">{form.formState.errors.start_date.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="toDate">To Date</Label>
+              <Label htmlFor="end_date">To Date</Label>
               <Input
-                id="toDate"
+                id="end_date"
                 type="date"
-                {...form.register("toDate")}
+                {...form.register("end_date")}
                 data-testid="input-to-date"
               />
-              {form.formState.errors.toDate && (
-                <p className="text-sm text-destructive">{form.formState.errors.toDate.message}</p>
+              {form.formState.errors.end_date && (
+                <p className="text-sm text-destructive">{form.formState.errors.end_date.message}</p>
               )}
             </div>
           </div>
@@ -140,25 +138,40 @@ export default function LeaveApplicationForm() {
             )}
           </div>
 
+          {/* Guardian Phone Number */}
+          <div className="space-y-2">
+            <Label htmlFor="guardian_phone">Guardian Phone Number *</Label>
+            <Input
+              id="guardian_phone"
+              type="tel"
+              placeholder="+91 9876543210"
+              {...form.register("guardian_phone")}
+              data-testid="input-guardian-phone"
+            />
+            {form.formState.errors.guardian_phone && (
+              <p className="text-sm text-destructive">{form.formState.errors.guardian_phone.message}</p>
+            )}
+          </div>
+
           {/* Hostel Student Checkbox */}
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="isHostelStudent"
-              checked={form.watch("isHostelStudent") || false}
-              onCheckedChange={(checked) => form.setValue("isHostelStudent", !!checked)}
+              id="is_hostel_student"
+              checked={form.watch("is_hostel_student") || false}
+              onCheckedChange={(checked) => form.setValue("is_hostel_student", !!checked)}
               data-testid="checkbox-hostel-student"
             />
-            <Label htmlFor="isHostelStudent">I am a hostel student</Label>
+            <Label htmlFor="is_hostel_student">I am a hostel student</Label>
           </div>
 
           {/* Emergency Contact */}
           <div className="space-y-2">
-            <Label htmlFor="emergencyContact">Emergency Contact Number</Label>
+            <Label htmlFor="emergency_contact">Emergency Contact Number</Label>
             <Input
-              id="emergencyContact"
+              id="emergency_contact"
               type="tel"
               placeholder="+91 9876543210"
-              {...form.register("emergencyContact")}
+              {...form.register("emergency_contact")}
               data-testid="input-emergency-contact"
             />
           </div>
