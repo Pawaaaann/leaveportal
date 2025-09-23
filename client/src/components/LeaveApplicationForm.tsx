@@ -32,6 +32,7 @@ export default function LeaveApplicationForm() {
       reason: "",
       start_date: "",
       end_date: "",
+      guardian_number: "",
       guardian_phone: "",
       emergency_contact: "",
       supporting_docs: "",
@@ -138,19 +139,34 @@ export default function LeaveApplicationForm() {
             )}
           </div>
 
-          {/* Guardian Phone Number */}
-          <div className="space-y-2">
-            <Label htmlFor="guardian_phone">Guardian Phone Number *</Label>
-            <Input
-              id="guardian_phone"
-              type="tel"
-              placeholder="+91 9876543210"
-              {...form.register("guardian_phone")}
-              data-testid="input-guardian-phone"
-            />
-            {form.formState.errors.guardian_phone && (
-              <p className="text-sm text-destructive">{form.formState.errors.guardian_phone.message}</p>
-            )}
+          {/* Guardian Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="guardian_number">Guardian Number/ID *</Label>
+              <Input
+                id="guardian_number"
+                type="text"
+                placeholder="Guardian ID/Number"
+                {...form.register("guardian_number")}
+                data-testid="input-guardian-number"
+              />
+              {form.formState.errors.guardian_number && (
+                <p className="text-sm text-destructive">{form.formState.errors.guardian_number.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="guardian_phone">Guardian Phone Number *</Label>
+              <Input
+                id="guardian_phone"
+                type="tel"
+                placeholder="+91 9876543210"
+                {...form.register("guardian_phone")}
+                data-testid="input-guardian-phone"
+              />
+              {form.formState.errors.guardian_phone && (
+                <p className="text-sm text-destructive">{form.formState.errors.guardian_phone.message}</p>
+              )}
+            </div>
           </div>
 
           {/* Hostel Student Checkbox */}
