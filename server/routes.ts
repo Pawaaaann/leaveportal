@@ -5,6 +5,23 @@ import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } 
 import { generateQRCode } from "./services/qr-service";
 // import { generatePDF } from "./services/pdf-service";
 import { notifyApprovers } from "./services/notification-service";
+import { generateGuardianToken, verifyGuardianToken, generateGuardianApprovalLink } from "./services/token-service";
+
+// Helper function to remove sensitive guardian token fields from responses
+function sanitizeLeaveRequest(leaveRequest: any) {
+  const { guardian_token, guardian_token_expires_at, ...sanitized } = leaveRequest;
+  return sanitized;
+}
+
+// Helper function to escape HTML in Node.js
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -14,14 +31,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertLeaveRequestSchema.parse(req.body);
       const storageInstance = await storage;
-      const leaveRequest = await storageInstance.createLeaveRequest(validatedData);
+      
+      // Generate guardian approval token
+      const { token, expiresAt } = generateGuardianToken(
+        `temp-${Date.now()}`, // Will be replaced with actual ID
+        validatedData.guardian_number
+      );
+      
+      // Create leave request with guardian token
+      const leaveRequestData = {
+        ...validatedData,
+        guardian_token: token,
+        guardian_token_expires_at: expiresAt
+      };
+      
+      const leaveRequest = await storageInstance.createLeaveRequest(leaveRequestData);
+      
+      // Regenerate token with actual leave request ID
+      const { token: finalToken, expiresAt: finalExpiresAt } = generateGuardianToken(
+        leaveRequest.id,
+        validatedData.guardian_number
+      );
+      
+      // Update leave request with final token
+      await storageInstance.updateLeaveRequest(leaveRequest.id, {
+        guardian_token: finalToken,
+        guardian_token_expires_at: finalExpiresAt
+      });
       
       // Create notification for guardian
-      await notifyApprovers(leaveRequest.id, "guardian", validatedData.student_id);
+      await notifyApprovers(leaveRequest.id, "guardian");
       console.log("New leave application submitted by student:", validatedData.student_id);
       
-      res.json(leaveRequest);
+      // Remove sensitive token fields from response to student
+      const { guardian_token, guardian_token_expires_at, ...safeResponse } = leaveRequest;
+      res.json(safeResponse);
     } catch (error) {
+      console.error("Error creating leave request:", error);
       res.status(400).json({ error: "Invalid request data" });
     }
   });
@@ -30,7 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storageInstance = await storage;
       const applications = await storageInstance.getLeaveRequestsByStudent(req.params.studentId);
-      res.json(applications);
+      const sanitizedApplications = applications.map(sanitizeLeaveRequest);
+      res.json(sanitizedApplications);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch applications" });
     }
@@ -40,7 +87,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storageInstance = await storage;
       const currentApplication = await storageInstance.getCurrentLeaveRequest(req.params.studentId);
-      res.json(currentApplication);
+      const sanitizedApplication = currentApplication ? sanitizeLeaveRequest(currentApplication) : null;
+      res.json(sanitizedApplication);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch current application" });
     }
@@ -56,7 +104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stage, 
         department as string
       );
-      res.json(pendingApplications);
+      const sanitizedApplications = pendingApplications.map(sanitizeLeaveRequest);
+      res.json(sanitizedApplications);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch pending applications" });
     }
@@ -127,6 +176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             approver_stage: stages[nextStageIndex],
             comments: comments || `Approved by ${leaveRequest.approver_stage}`,
           });
+
+          // Notify next stage approvers
+          const student = await storageInstance.getUser(leaveRequest.student_id);
+          await notifyApprovers(id, stages[nextStageIndex], student?.dept);
         }
       }
 
@@ -161,6 +214,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Guardian-specific approval endpoint with token authentication
+  app.post("/api/leave-requests/:id/guardian-approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { token, action, comments } = req.body;
+      
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.getLeaveRequest(id);
+      if (!leaveRequest) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      // Verify guardian token matches stored token and is cryptographically valid
+      if (!leaveRequest.guardian_token || leaveRequest.guardian_token !== token) {
+        return res.status(403).json({ error: "Invalid or expired token" });
+      }
+      
+      const tokenVerification = verifyGuardianToken(token, id, leaveRequest.guardian_number);
+      if (!tokenVerification.valid) {
+        return res.status(403).json({ 
+          error: tokenVerification.error || "Invalid token",
+          expired: tokenVerification.expired 
+        });
+      }
+
+      // Only allow guardian approval if currently at guardian stage
+      if (leaveRequest.approver_stage !== "guardian") {
+        return res.status(400).json({ error: "Leave request is not at guardian approval stage" });
+      }
+
+      if (action === "reject") {
+        // If rejected by guardian, update status and stop workflow
+        await storageInstance.updateLeaveRequest(id, {
+          status: "rejected",
+          comments: comments || "Application rejected by guardian",
+          guardian_token: null, // Invalidate token after use
+        });
+
+        // Generate rejection QR code
+        const qrData = {
+          student_id: leaveRequest.student_id,
+          leaveId: id,
+          status: "Not Approved",
+          rejectedBy: "Guardian",
+          rejectionReason: comments || "Rejected by guardian",
+        };
+        const qrUrl = await generateQRCode(qrData);
+        
+        await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
+      } else {
+        // If approved by guardian, move to next stage (mentor)
+        await storageInstance.updateLeaveRequest(id, {
+          approver_stage: "mentor",
+          comments: comments || "Approved by guardian",
+          guardian_token: null, // Invalidate token after use
+        });
+
+        // Get student info for department-based mentor notification
+        const student = await storageInstance.getUser(leaveRequest.student_id);
+        await notifyApprovers(id, "mentor", student?.dept);
+      }
+
+      res.json({ success: true, message: `Leave request ${action}d by guardian` });
+    } catch (error) {
+      console.error("Guardian approval error:", error);
+      res.status(500).json({ error: "Failed to process guardian approval" });
+    }
+  });
+
+  // Guardian approval page endpoint (GET)
+  app.get("/guardian-approve/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { token } = req.query;
+      
+      if (!token) {
+        return res.status(400).send("Missing approval token");
+      }
+
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.getLeaveRequest(id);
+      if (!leaveRequest) {
+        return res.status(404).send("Leave request not found");
+      }
+
+      // Verify token is valid before showing approval page
+      if (!leaveRequest.guardian_token || leaveRequest.guardian_token !== token) {
+        return res.status(403).send("Invalid or expired approval link");
+      }
+
+      const tokenVerification = verifyGuardianToken(token as string, id, leaveRequest.guardian_number);
+      if (!tokenVerification.valid) {
+        if (tokenVerification.expired) {
+          return res.status(403).send("This approval link has expired");
+        }
+        return res.status(403).send("Invalid approval link");
+      }
+
+      if (leaveRequest.approver_stage !== "guardian") {
+        return res.status(400).send("This leave request has already been processed");
+      }
+
+      // Serve guardian approval page with proper HTML escaping
+      const approvalPage = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'self'; style-src 'unsafe-inline';">
+          <meta name="referrer" content="no-referrer">
+          <title>Guardian Approval - Leave Request</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+            .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .button { padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+            .approve { background-color: #4CAF50; color: white; }
+            .reject { background-color: #f44336; color: white; }
+            textarea { width: 100%; padding: 10px; margin: 10px 0; }
+          </style>
+        </head>
+        <body data-token="${escapeHtml(token as string)}" data-leave-id="${escapeHtml(id)}">
+          <h1>Guardian Approval Required</h1>
+          <div class="card">
+            <h3>Leave Request Details</h3>
+            <p><strong>Student:</strong> <span data-field="student_id">${escapeHtml(leaveRequest.student_id)}</span></p>
+            <p><strong>Leave Type:</strong> <span data-field="leave_type">${escapeHtml(leaveRequest.leave_type)}</span></p>
+            <p><strong>Reason:</strong> <span data-field="reason">${escapeHtml(leaveRequest.reason)}</span></p>
+            <p><strong>From:</strong> <span data-field="start_date">${escapeHtml(leaveRequest.start_date)}</span></p>
+            <p><strong>To:</strong> <span data-field="end_date">${escapeHtml(leaveRequest.end_date)}</span></p>
+            <p><strong>Guardian Number:</strong> <span data-field="guardian_number">${escapeHtml(leaveRequest.guardian_number)}</span></p>
+          </div>
+          
+          <div class="card">
+            <h3>Guardian Decision</h3>
+            <textarea id="comments" placeholder="Optional comments..." rows="3"></textarea>
+            <div>
+              <button class="button approve" id="approve-btn">Approve</button>
+              <button class="button reject" id="reject-btn">Reject</button>
+            </div>
+          </div>
+
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              function submitDecision(action) {
+                const comments = document.getElementById('comments').value;
+                const token = document.body.getAttribute('data-token');
+                const leaveId = document.body.getAttribute('data-leave-id');
+                
+                fetch('/api/leave-requests/' + leaveId + '/guardian-approve', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    token: token,
+                    action: action,
+                    comments: comments
+                  })
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.success) {
+                    document.body.innerHTML = '<h1>Decision Submitted</h1><p>Thank you! Your decision has been recorded.</p>';
+                  } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                  }
+                })
+                .catch(error => {
+                  alert('Error submitting decision: ' + error.message);
+                });
+              }
+              
+              document.getElementById('approve-btn').addEventListener('click', function() {
+                submitDecision('approve');
+              });
+              
+              document.getElementById('reject-btn').addEventListener('click', function() {
+                submitDecision('reject');
+              });
+            });
+          </script>
+        </body>
+        </html>
+      `;
+      
+      res.send(approvalPage);
+    } catch (error) {
+      console.error("Guardian approval page error:", error);
+      res.status(500).send("Error loading approval page");
+    }
+  });
+
   // Get all leave requests for admin overview
   app.get("/api/leave-requests/all", async (req, res) => {
     try {
@@ -178,8 +422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Flatten the arrays and also get approved/rejected requests
       // For now, we'll return the flattened pending requests
       const flattenedRequests = allRequests.flat();
+      const sanitizedRequests = flattenedRequests.map(sanitizeLeaveRequest);
       
-      res.json(flattenedRequests);
+      res.json(sanitizedRequests);
     } catch (error) {
       console.error("Error fetching all leave requests:", error);
       res.status(500).json({ error: "Failed to fetch leave requests" });

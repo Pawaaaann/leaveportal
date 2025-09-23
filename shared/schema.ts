@@ -47,6 +47,8 @@ export interface LeaveRequest {
   approver_stage: string; // guardian, mentor, hod, principal, warden
   comments: string | null;
   final_qr_url: string | null;
+  guardian_token: string | null;
+  guardian_token_expires_at: string | null;
 }
 
 export const insertLeaveRequestSchema = z.object({

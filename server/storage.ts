@@ -187,6 +187,8 @@ export class MemStorage implements IStorage {
       approver_stage: "guardian",
       comments: null,
       final_qr_url: null,
+      guardian_token: (insertRequest as any).guardian_token || null,
+      guardian_token_expires_at: (insertRequest as any).guardian_token_expires_at || null,
       emergency_contact: insertRequest.emergency_contact || null,
       supporting_docs: insertRequest.supporting_docs || null,
       is_hostel_student: insertRequest.is_hostel_student || false
@@ -471,6 +473,8 @@ export class FirestoreStorage implements IStorage {
         approver_stage: "guardian",
         comments: null,
         final_qr_url: null,
+        guardian_token: (insertRequest as any).guardian_token || null,
+        guardian_token_expires_at: (insertRequest as any).guardian_token_expires_at || null,
         emergency_contact: insertRequest.emergency_contact || null,
         supporting_docs: insertRequest.supporting_docs || null,
         is_hostel_student: insertRequest.is_hostel_student || false
