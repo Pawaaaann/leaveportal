@@ -114,14 +114,20 @@ export class MemStorage implements IStorage {
     });
 
     // Create a sample leave request for testing
-    const sampleLeaveRequest = {
+    const sampleLeaveRequest: LeaveRequest = {
       id: "leave-001",
       student_id: "student-001",
+      leave_type: "medical",
       reason: "Medical checkup appointment",
       start_date: "2024-01-15",
       end_date: "2024-01-16",
+      guardian_number: "G12345",
+      guardian_phone: "9876543210",
+      emergency_contact: "9876543211",
+      supporting_docs: null,
+      is_hostel_student: false,
       status: "pending",
-      approver_stage: "mentor",
+      approver_stage: "guardian",
       comments: null,
       final_qr_url: null
     };
@@ -178,9 +184,12 @@ export class MemStorage implements IStorage {
       ...insertRequest,
       id,
       status: "pending",
-      approver_stage: "mentor",
+      approver_stage: "guardian",
       comments: null,
-      final_qr_url: null
+      final_qr_url: null,
+      emergency_contact: insertRequest.emergency_contact || null,
+      supporting_docs: insertRequest.supporting_docs || null,
+      is_hostel_student: insertRequest.is_hostel_student || false
     };
     this.leaveRequests.set(id, request);
     return request;
@@ -459,9 +468,12 @@ export class FirestoreStorage implements IStorage {
         ...insertRequest,
         id,
         status: "pending",
-        approver_stage: "mentor",
+        approver_stage: "guardian",
         comments: null,
-        final_qr_url: null
+        final_qr_url: null,
+        emergency_contact: insertRequest.emergency_contact || null,
+        supporting_docs: insertRequest.supporting_docs || null,
+        is_hostel_student: insertRequest.is_hostel_student || false
       };
       
       await db.collection("leaveRequests").doc(id).set(request);

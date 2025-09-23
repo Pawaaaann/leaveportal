@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } from "@shared/schema";
 import { generateQRCode } from "./services/qr-service";
 // import { generatePDF } from "./services/pdf-service";
-// import { createNotification } from "./services/notification-service";
+import { notifyApprovers } from "./services/notification-service";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -16,8 +16,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storageInstance = await storage;
       const leaveRequest = await storageInstance.createLeaveRequest(validatedData);
       
-      // Create notification for mentor
-      // TODO: Implement notification service
+      // Create notification for guardian
+      await notifyApprovers(leaveRequest.id, "guardian", validatedData.student_id);
       console.log("New leave application submitted by student:", validatedData.student_id);
       
       res.json(leaveRequest);
@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
       } else {
         // If approved, move to next stage or complete
-        const stages = ["mentor", "hod", "principal"];
+        const stages = ["guardian", "mentor", "hod", "principal"];
         
         // Check if student is hostel student by looking up user info
         const student = await storageInstance.getUser(leaveRequest.student_id);
@@ -168,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all leave requests across all stages
       const allRequests = await Promise.all([
+        storageInstance.getPendingLeaveRequestsByStage("guardian"),
         storageInstance.getPendingLeaveRequestsByStage("mentor"),
         storageInstance.getPendingLeaveRequestsByStage("hod"),
         storageInstance.getPendingLeaveRequestsByStage("principal"),

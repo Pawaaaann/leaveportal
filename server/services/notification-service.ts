@@ -7,11 +7,10 @@ export async function createNotification(
   relatedLeaveId?: string
 ) {
   try {
-    const notification = await storage.createNotification({
-      userId,
+    const storageInstance = await storage;
+    const notification = await storageInstance.createNotification({
+      user_id: userId,
       message,
-      type,
-      relatedLeaveId: relatedLeaveId || null,
     });
     
     return notification;
@@ -27,25 +26,32 @@ export async function notifyApprovers(
   department?: string
 ) {
   try {
+    const storageInstance = await storage;
     let approvers: any[] = [];
     
     switch (stage) {
+      case "guardian":
+        // For guardian stage, we need to handle external notification
+        console.log(`Guardian approval required for leave request ${leaveRequestId}`);
+        // TODO: Implement SMS/email notification to guardian
+        // For now, just log the approval requirement
+        return;
       case "mentor":
         // TODO: Get mentor based on student's department and year
-        approvers = await storage.getUsersByRole("Mentor");
+        approvers = await storageInstance.getUsersByRole("Mentor");
         break;
       case "hod":
         // TODO: Get HOD based on department
-        approvers = await storage.getUsersByRole("HOD");
+        approvers = await storageInstance.getUsersByRole("HOD");
         if (department) {
-          approvers = approvers.filter(user => user.department === department);
+          approvers = approvers.filter(user => user.dept === department);
         }
         break;
       case "principal":
-        approvers = await storage.getUsersByRole("Principal");
+        approvers = await storageInstance.getUsersByRole("Principal");
         break;
       case "warden":
-        approvers = await storage.getUsersByRole("Warden");
+        approvers = await storageInstance.getUsersByRole("Warden");
         break;
     }
     

@@ -40,7 +40,7 @@ export interface LeaveRequest {
   end_date: string;
   guardian_number: string;
   guardian_phone: string;
-  emergency_contact: string;
+  emergency_contact: string | null;
   supporting_docs: string | null;
   is_hostel_student: boolean;
   status: string; // pending, approved, rejected
