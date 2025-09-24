@@ -32,11 +32,9 @@ export default function LeaveApplicationForm() {
       reason: "",
       start_date: "",
       end_date: "",
-      guardian_number: "",
       guardian_phone: "",
       emergency_contact: "",
       supporting_docs: "",
-      is_hostel_student: false,
     },
   });
 
@@ -63,7 +61,13 @@ export default function LeaveApplicationForm() {
   });
 
   const onSubmit = (data: FormData) => {
-    submitMutation.mutate(data);
+    // Add hostel status from student profile
+    const isHostelStudent = userData?.hostel_status === "Hostel";
+    const submitData = {
+      ...data,
+      is_hostel_student: isHostelStudent
+    };
+    submitMutation.mutate(submitData);
   };
 
   return (
@@ -140,45 +144,28 @@ export default function LeaveApplicationForm() {
           </div>
 
           {/* Guardian Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="guardian_number">Guardian Number/ID *</Label>
-              <Input
-                id="guardian_number"
-                type="text"
-                placeholder="Guardian ID/Number"
-                {...form.register("guardian_number")}
-                data-testid="input-guardian-number"
-              />
-              {form.formState.errors.guardian_number && (
-                <p className="text-sm text-destructive">{form.formState.errors.guardian_number.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="guardian_phone">Guardian Phone Number *</Label>
-              <Input
-                id="guardian_phone"
-                type="tel"
-                placeholder="+91 9876543210"
-                {...form.register("guardian_phone")}
-                data-testid="input-guardian-phone"
-              />
-              {form.formState.errors.guardian_phone && (
-                <p className="text-sm text-destructive">{form.formState.errors.guardian_phone.message}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="guardian_phone">Guardian Phone Number *</Label>
+            <Input
+              id="guardian_phone"
+              type="tel"
+              placeholder="+91 9876543210"
+              {...form.register("guardian_phone")}
+              data-testid="input-guardian-phone"
+            />
+            {form.formState.errors.guardian_phone && (
+              <p className="text-sm text-destructive">{form.formState.errors.guardian_phone.message}</p>
+            )}
           </div>
 
-          {/* Hostel Student Checkbox */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_hostel_student"
-              checked={form.watch("is_hostel_student") || false}
-              onCheckedChange={(checked) => form.setValue("is_hostel_student", !!checked)}
-              data-testid="checkbox-hostel-student"
-            />
-            <Label htmlFor="is_hostel_student">I am a hostel student</Label>
-          </div>
+          {/* Display hostel status from profile */}
+          {userData?.hostel_status && (
+            <div className="bg-muted p-3 rounded-md">
+              <p className="text-sm text-muted-foreground">
+                Hostel Status: <span className="font-medium text-foreground">{userData.hostel_status}</span>
+              </p>
+            </div>
+          )}
 
           {/* Emergency Contact */}
           <div className="space-y-2">

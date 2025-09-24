@@ -35,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate guardian approval token
       const { token, expiresAt } = generateGuardianToken(
         `temp-${Date.now()}`, // Will be replaced with actual ID
-        validatedData.guardian_number
+        validatedData.guardian_phone
       );
       
       // Create leave request with guardian token
@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Regenerate token with actual leave request ID
       const { token: finalToken, expiresAt: finalExpiresAt } = generateGuardianToken(
         leaveRequest.id,
-        validatedData.guardian_number
+        validatedData.guardian_phone
       );
       
       // Update leave request with final token
@@ -231,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Invalid or expired token" });
       }
       
-      const tokenVerification = verifyGuardianToken(token, id, leaveRequest.guardian_number);
+      const tokenVerification = verifyGuardianToken(token, id, leaveRequest.guardian_phone);
       if (!tokenVerification.valid) {
         return res.status(403).json({ 
           error: tokenVerification.error || "Invalid token",
@@ -304,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).send("Invalid or expired approval link");
       }
 
-      const tokenVerification = verifyGuardianToken(token as string, id, leaveRequest.guardian_number);
+      const tokenVerification = verifyGuardianToken(token as string, id, leaveRequest.guardian_phone);
       if (!tokenVerification.valid) {
         if (tokenVerification.expired) {
           return res.status(403).send("This approval link has expired");
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <p><strong>Reason:</strong> <span data-field="reason">${escapeHtml(leaveRequest.reason)}</span></p>
             <p><strong>From:</strong> <span data-field="start_date">${escapeHtml(leaveRequest.start_date)}</span></p>
             <p><strong>To:</strong> <span data-field="end_date">${escapeHtml(leaveRequest.end_date)}</span></p>
-            <p><strong>Guardian Number:</strong> <span data-field="guardian_number">${escapeHtml(leaveRequest.guardian_number)}</span></p>
+            <p><strong>Guardian Phone:</strong> <span data-field="guardian_phone">${escapeHtml(leaveRequest.guardian_phone)}</span></p>
           </div>
           
           <div class="card">

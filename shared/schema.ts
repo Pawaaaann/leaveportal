@@ -38,7 +38,6 @@ export interface LeaveRequest {
   reason: string;
   start_date: string;
   end_date: string;
-  guardian_number: string;
   guardian_phone: string;
   emergency_contact: string | null;
   supporting_docs: string | null;
@@ -57,11 +56,9 @@ export const insertLeaveRequestSchema = z.object({
   reason: z.string(),
   start_date: z.string(),
   end_date: z.string(),
-  guardian_number: z.string().min(1, "Guardian number is required"),
   guardian_phone: z.string().min(10, "Guardian phone number is required"),
   emergency_contact: z.string().optional(),
   supporting_docs: z.string().optional(),
-  is_hostel_student: z.boolean().optional(),
 });
 
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
