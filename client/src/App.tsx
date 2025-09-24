@@ -15,6 +15,7 @@ import HODDashboard from "@/pages/hod-dashboard";
 import PrincipalDashboard from "@/pages/principal-dashboard";
 import WardenDashboard from "@/pages/warden-dashboard";
 import Profile from "@/pages/profile";
+import Applications from "@/pages/applications";
 import NotFound from "@/pages/not-found";
 
 function DashboardRouter() {
@@ -53,6 +54,11 @@ function Router() {
       <Route path="/profile">
         <ProtectedRoute>
           <Profile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/applications">
+        <ProtectedRoute>
+          <Applications />
         </ProtectedRoute>
       </Route>
       <Route path="/">
