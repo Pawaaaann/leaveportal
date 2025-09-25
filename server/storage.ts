@@ -268,9 +268,28 @@ function tryInitializeFirestore(): Promise<FirebaseFirestore.Firestore | null> {
     if (!getApps().length) {
       try {
         // Try to initialize with service account (production)
-        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
-          ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-          : null;
+        let serviceAccount = null;
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+          try {
+            // Clean control characters and malformed JSON before parsing
+            let jsonString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+            
+            // Remove common control characters that cause parsing issues
+            jsonString = jsonString
+              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+              .replace(/\\"/g, '"') // Fix escaped quotes
+              .replace(/\\\\/g, '\\') // Fix escaped backslashes
+              .trim();
+            
+            console.log('Attempting to parse Firebase service account JSON...');
+            serviceAccount = JSON.parse(jsonString);
+            console.log('Successfully parsed Firebase service account JSON');
+          } catch (jsonError: any) {
+            console.error('Failed to parse Firebase service account JSON:', jsonError.message);
+            console.error('JSON parsing error at position:', jsonError.message.match(/position (\d+)/)?.[1] || 'unknown');
+            serviceAccount = null;
+          }
+        }
           
         if (serviceAccount && process.env.FIREBASE_PROJECT_ID) {
           // Fix private key formatting - handle various encoding issues
