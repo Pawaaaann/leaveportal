@@ -59,6 +59,7 @@ export const insertLeaveRequestSchema = z.object({
   guardian_phone: z.string().min(10, "Guardian phone number is required"),
   emergency_contact: z.string().optional(),
   supporting_docs: z.string().optional(),
+  is_hostel_student: z.boolean().optional(),
 });
 
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;

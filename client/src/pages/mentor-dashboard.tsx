@@ -9,12 +9,12 @@ export default function MentorDashboard() {
   const { userData } = useAuth();
 
   const { data: pendingApplications = [], isLoading } = useQuery<LeaveRequest[]>({
-    queryKey: ["/api/leave-requests", "pending", "mentor", userData?.id],
+    queryKey: [`/api/leave-requests/mentor/${userData?.id}`],
     enabled: !!userData?.id,
   });
 
   const { data: stats } = useQuery<{pending: number, approved: number, rejected: number, totalStudents: number}>({
-    queryKey: ["/api/leave-requests", "mentor-stats", userData?.id],
+    queryKey: [`/api/leave-requests/mentor-stats/${userData?.id}`],
     enabled: !!userData?.id,
   });
 

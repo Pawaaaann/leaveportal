@@ -111,6 +111,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/leave-requests/mentor/:mentorId", async (req, res) => {
+    try {
+      const { mentorId } = req.params;
+      const storageInstance = await storage;
+      
+      const mentor = await storageInstance.getUser(mentorId);
+      if (!mentor || mentor.role !== "Mentor") {
+        return res.status(403).json({ error: "User is not a mentor" });
+      }
+      
+      const pendingMentorRequests = await storageInstance.getPendingLeaveRequestsByStage("mentor");
+      
+      const mentorSpecificRequests = [];
+      for (const request of pendingMentorRequests) {
+        const student = await storageInstance.getUser(request.student_id);
+        if (!student) continue;
+        
+        if (student.mentor_id === mentorId) {
+          mentorSpecificRequests.push(request);
+        } else if (student.dept === mentor.dept && student.year === mentor.year) {
+          mentorSpecificRequests.push(request);
+        } else if (student.dept === mentor.dept && !mentor.year) {
+          mentorSpecificRequests.push(request);
+        }
+      }
+      
+      const sanitizedApplications = mentorSpecificRequests.map(sanitizeLeaveRequest);
+      res.json(sanitizedApplications);
+    } catch (error) {
+      console.error("Error fetching mentor leave requests:", error);
+      res.status(500).json({ error: "Failed to fetch mentor applications" });
+    }
+  });
+
   app.post("/api/leave-requests/:id/approve", async (req, res) => {
     try {
       const { id } = req.params;
@@ -179,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Notify next stage approvers
           const student = await storageInstance.getUser(leaveRequest.student_id);
-          await notifyApprovers(id, stages[nextStageIndex], student?.dept);
+          await notifyApprovers(id, stages[nextStageIndex], student?.dept ?? undefined);
         }
       }
 
@@ -273,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Get student info for department-based mentor notification
         const student = await storageInstance.getUser(leaveRequest.student_id);
-        await notifyApprovers(id, "mentor", student?.dept);
+        await notifyApprovers(id, "mentor", student?.dept ?? undefined);
       }
 
       res.json({ success: true, message: `Leave request ${action}d by guardian` });

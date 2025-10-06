@@ -121,7 +121,6 @@ export class MemStorage implements IStorage {
       reason: "Medical checkup appointment",
       start_date: "2024-01-15",
       end_date: "2024-01-16",
-      guardian_number: "G12345",
       guardian_phone: "9876543210",
       emergency_contact: "9876543211",
       supporting_docs: null,
@@ -129,7 +128,9 @@ export class MemStorage implements IStorage {
       status: "pending",
       approver_stage: "guardian",
       comments: null,
-      final_qr_url: null
+      final_qr_url: null,
+      guardian_token: null,
+      guardian_token_expires_at: null
     };
 
     this.leaveRequests.set(sampleLeaveRequest.id, sampleLeaveRequest);

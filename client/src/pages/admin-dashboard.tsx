@@ -60,6 +60,27 @@ export default function AdminDashboard() {
     queryKey: ["/api/leave-requests/all"],
   });
 
+  // Approve/Reject leave request mutation
+  const approveRejectMutation = useMutation({
+    mutationFn: async ({ id, action, comments }: { id: string; action: string; comments?: string }) => {
+      return await apiRequest("POST", `/api/leave-requests/${id}/approve`, { action, comments });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Leave request updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests/all"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update leave request",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
@@ -466,10 +487,24 @@ export default function AdminDashboard() {
                             <TableCell>
                               {request.status === 'pending' && (
                                 <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" className="text-green-600">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="text-green-600"
+                                    onClick={() => approveRejectMutation.mutate({ id: request.id, action: 'approve' })}
+                                    disabled={approveRejectMutation.isPending}
+                                    data-testid={`button-approve-${request.id}`}
+                                  >
                                     Approve
                                   </Button>
-                                  <Button size="sm" variant="outline" className="text-red-600">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="text-red-600"
+                                    onClick={() => approveRejectMutation.mutate({ id: request.id, action: 'reject' })}
+                                    disabled={approveRejectMutation.isPending}
+                                    data-testid={`button-reject-${request.id}`}
+                                  >
                                     Reject
                                   </Button>
                                 </div>
