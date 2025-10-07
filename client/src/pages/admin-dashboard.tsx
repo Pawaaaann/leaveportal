@@ -81,6 +81,27 @@ export default function AdminDashboard() {
     },
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
@@ -418,6 +439,7 @@ export default function AdminDashboard() {
                           <TableHead>Role</TableHead>
                           <TableHead>Department</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -431,6 +453,21 @@ export default function AdminDashboard() {
                             <TableCell>{user.dept || "-"}</TableCell>
                             <TableCell>
                               <Badge variant="secondary">Active</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+                                    deleteUserMutation.mutate(user.id);
+                                  }
+                                }}
+                                disabled={deleteUserMutation.isPending}
+                                data-testid={`button-delete-${user.id}`}
+                              >
+                                Delete
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}

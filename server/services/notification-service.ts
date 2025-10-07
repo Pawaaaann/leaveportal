@@ -4,7 +4,7 @@ import { generateGuardianApprovalLink } from "./token-service";
 export async function createNotification(
   userId: string,
   message: string,
-  type: "info" | "success" | "warning" | "error",
+  type?: "info" | "success" | "warning" | "error",
   relatedLeaveId?: string
 ) {
   try {

@@ -10,6 +10,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   getUsersByRole(role: string): Promise<User[]>;
   getUsersByDepartment(department: string): Promise<User[]>;
   
@@ -168,6 +169,10 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
   }
 
   async getUsersByRole(role: string): Promise<User[]> {
@@ -453,6 +458,18 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error("Error updating user:", error);
       return undefined;
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      await db.collection("users").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
     }
   }
 

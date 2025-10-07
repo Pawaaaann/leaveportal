@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } from "@shared/schema";
 import { generateQRCode } from "./services/qr-service";
 // import { generatePDF } from "./services/pdf-service";
-import { notifyApprovers } from "./services/notification-service";
+import { notifyApprovers, createNotification } from "./services/notification-service";
 import { generateGuardianToken, verifyGuardianToken, generateGuardianApprovalLink } from "./services/token-service";
 
 // Helper function to remove sensitive guardian token fields from responses
@@ -174,6 +174,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const qrUrl = await generateQRCode(qrData);
         
         await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
+        
+        // Notify student of rejection
+        await createNotification(
+          leaveRequest.student_id,
+          `Your leave request has been rejected. Reason: ${comments || "No reason provided"}`,
+          "error",
+          id
+        );
       } else {
         // If approved, move to next stage or complete
         const stages = ["guardian", "mentor", "hod", "principal"];
@@ -204,6 +212,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             comments: comments || "Application approved",
             final_qr_url: qrUrl,
           });
+          
+          // Notify student of final approval
+          await createNotification(
+            leaveRequest.student_id,
+            `Your leave request has been approved! You can download your leave pass from the dashboard.`,
+            "success",
+            id
+          );
         } else {
           // Move to next stage
           await storageInstance.updateLeaveRequest(id, {
@@ -214,11 +230,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Notify next stage approvers
           const student = await storageInstance.getUser(leaveRequest.student_id);
           await notifyApprovers(id, stages[nextStageIndex], student?.dept ?? undefined);
+          
+          // Notify student of progress
+          await createNotification(
+            leaveRequest.student_id,
+            `Your leave request has been approved by ${leaveRequest.approver_stage} and forwarded to ${stages[nextStageIndex]}.`,
+            "info",
+            id
+          );
         }
       }
 
-      // Create notification for student
-      // TODO: Implement notification service
       console.log(`Leave application ${action}d for student:`, leaveRequest.student_id);
 
       res.json({ success: true });
@@ -637,6 +659,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("User creation error:", error);
         res.status(500).json({ error: "Failed to create user" });
       }
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const storageInstance = await storage;
+      
+      // Get user before deleting
+      const user = await storageInstance.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Delete from Firebase Authentication first
+      let firebaseDeleted = false;
+      try {
+        const { getAuth } = await import('firebase-admin/auth');
+        const auth = getAuth();
+        await auth.deleteUser(id);
+        firebaseDeleted = true;
+        console.log(`User deleted from Firebase Auth: ${user.email}`);
+      } catch (firebaseError: any) {
+        console.error("Firebase Auth user deletion failed:", firebaseError);
+        return res.status(500).json({ error: "Failed to delete user from authentication" });
+      }
+      
+      // Only delete from storage if Firebase Auth deletion succeeded
+      const deleted = await storageInstance.deleteUser(id);
+      
+      if (deleted) {
+        res.json({ success: true, message: "User deleted successfully" });
+      } else {
+        // Storage deletion failed after Firebase Auth succeeded - this is inconsistent state
+        console.error(`Critical: Storage deletion failed for user ${id} after Firebase Auth deletion succeeded`);
+        console.error(`User ${user.email} has no authentication but storage record may persist`);
+        res.status(500).json({ 
+          error: "User authentication deleted but storage cleanup failed. Contact administrator.",
+          critical: true 
+        });
+      }
+    } catch (error) {
+      console.error("User deletion error:", error);
+      res.status(500).json({ error: "Failed to delete user" });
     }
   });
 
