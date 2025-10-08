@@ -17,7 +17,8 @@ export async function generatePDF(leaveRequest: LeaveRequest): Promise<Buffer> {
 
     try {
       // Get student data
-      const student = await storage.getUser(leaveRequest.studentId);
+      const storageInstance = await storage;
+      const student = await storageInstance.getUser(leaveRequest.student_id);
       
       // Header
       doc.fontSize(20).text('College Leave Pass', { align: 'center' });
@@ -25,15 +26,15 @@ export async function generatePDF(leaveRequest: LeaveRequest): Promise<Buffer> {
       
       // Student Information
       doc.fontSize(14).text(`Name: ${student?.name || 'N/A'}`);
-      doc.text(`Roll Number: ${student?.rollNumber || 'N/A'}`);
-      doc.text(`Department: ${student?.department || 'N/A'}`);
+      doc.text(`Register Number: ${student?.register_number || 'N/A'}`);
+      doc.text(`Department: ${student?.dept || 'N/A'}`);
       doc.text(`Year: ${student?.year || 'N/A'}`);
       doc.moveDown();
       
       // Leave Details
-      doc.text(`Leave Type: ${leaveRequest.leaveType}`);
-      doc.text(`From Date: ${new Date(leaveRequest.fromDate).toLocaleDateString()}`);
-      doc.text(`To Date: ${new Date(leaveRequest.toDate).toLocaleDateString()}`);
+      doc.text(`Leave Type: ${leaveRequest.leave_type}`);
+      doc.text(`From Date: ${new Date(leaveRequest.start_date).toLocaleDateString()}`);
+      doc.text(`To Date: ${new Date(leaveRequest.end_date).toLocaleDateString()}`);
       doc.text(`Reason: ${leaveRequest.reason}`);
       doc.moveDown();
       
@@ -45,14 +46,14 @@ export async function generatePDF(leaveRequest: LeaveRequest): Promise<Buffer> {
       doc.moveDown();
       
       // QR Code
-      if (leaveRequest.finalQrUrl) {
+      if (leaveRequest.final_qr_url) {
         try {
           const qrData = {
-            studentId: leaveRequest.studentId,
+            student_id: leaveRequest.student_id,
             leaveId: leaveRequest.id,
             status: leaveRequest.status,
-            fromDate: leaveRequest.fromDate,
-            toDate: leaveRequest.toDate,
+            start_date: leaveRequest.start_date,
+            end_date: leaveRequest.end_date,
           };
           
           const qrBuffer = await generateQRCodeBuffer(qrData);

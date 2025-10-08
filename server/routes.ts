@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } from "@shared/schema";
 import { generateQRCode } from "./services/qr-service";
-// import { generatePDF } from "./services/pdf-service";
+import { generatePDF } from "./services/pdf-service";
 import { notifyApprovers, createNotification } from "./services/notification-service";
 import { generateGuardianToken, verifyGuardianToken, generateGuardianApprovalLink } from "./services/token-service";
 
@@ -259,13 +259,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Leave request not found" });
       }
 
-      // TODO: Implement PDF generation service
-      const pdfBuffer = Buffer.from("Mock PDF content", "utf-8");
+      const pdfBuffer = await generatePDF(leaveRequest);
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=leave-pass-${id}.pdf`);
       res.send(pdfBuffer);
     } catch (error) {
+      console.error("PDF generation error:", error);
       res.status(500).json({ error: "Failed to generate PDF" });
     }
   });
