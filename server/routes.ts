@@ -466,19 +466,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storageInstance = await storage;
       
-      // Get all leave requests across all stages
-      const allRequests = await Promise.all([
-        storageInstance.getPendingLeaveRequestsByStage("guardian"),
-        storageInstance.getPendingLeaveRequestsByStage("mentor"),
-        storageInstance.getPendingLeaveRequestsByStage("hod"),
-        storageInstance.getPendingLeaveRequestsByStage("principal"),
-        storageInstance.getPendingLeaveRequestsByStage("warden")
-      ]);
-      
-      // Flatten the arrays and also get approved/rejected requests
-      // For now, we'll return the flattened pending requests
-      const flattenedRequests = allRequests.flat();
-      const sanitizedRequests = flattenedRequests.map(sanitizeLeaveRequest);
+      // Get all leave requests (pending, approved, rejected)
+      const allRequests = await storageInstance.getAllLeaveRequests();
+      const sanitizedRequests = allRequests.map(sanitizeLeaveRequest);
       
       res.json(sanitizedRequests);
     } catch (error) {

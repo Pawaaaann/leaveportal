@@ -21,6 +21,7 @@ export interface IStorage {
   getLeaveRequestsByStudent(student_id: string): Promise<LeaveRequest[]>;
   getPendingLeaveRequestsByStage(stage: string, departmentFilter?: string): Promise<LeaveRequest[]>;
   getCurrentLeaveRequest(student_id: string): Promise<LeaveRequest | undefined>;
+  getAllLeaveRequests(): Promise<LeaveRequest[]>;
   
   // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -243,6 +244,10 @@ export class MemStorage implements IStorage {
   async getCurrentLeaveRequest(student_id: string): Promise<LeaveRequest | undefined> {
     return Array.from(this.leaveRequests.values())
       .filter(request => request.student_id === student_id && request.status === "pending")[0];
+  }
+
+  async getAllLeaveRequests(): Promise<LeaveRequest[]> {
+    return Array.from(this.leaveRequests.values());
   }
 
   // Notification operations
@@ -601,6 +606,18 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error("Error getting current leave request:", error);
       return undefined;
+    }
+  }
+
+  async getAllLeaveRequests(): Promise<LeaveRequest[]> {
+    try {
+      const db = await ensureFirestore();
+      if (!db) throw new Error("Firestore not available");
+      const querySnapshot = await db.collection("leaveRequests").get();
+      return querySnapshot.docs.map(doc => doc.data() as LeaveRequest);
+    } catch (error) {
+      console.error("Error getting all leave requests:", error);
+      return [];
     }
   }
 
