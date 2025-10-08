@@ -8,21 +8,24 @@ import { LeaveRequest } from "@shared/schema";
 export default function QRLeavePass() {
   const { userData } = useAuth();
 
-  const { data: currentApplication } = useQuery<LeaveRequest>({
-    queryKey: ["/api/leave-requests", "current", userData?.id],
+  const { data: applications = [] } = useQuery<LeaveRequest[]>({
+    queryKey: ["/api/leave-requests/student", userData?.id],
     enabled: !!userData?.id,
   });
 
-  const handleDownloadPDF = async () => {
-    if (!currentApplication?.id) return;
+  // Get all approved applications with QR codes
+  const approvedApplications = applications.filter(
+    app => app.status === "approved" && app.final_qr_url
+  );
 
+  const handleDownloadPDF = async (applicationId: string) => {
     try {
-      const response = await fetch(`/api/leave-requests/${currentApplication.id}/pdf`);
+      const response = await fetch(`/api/leave-requests/${applicationId}/pdf`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `leave-pass-${currentApplication.id}.pdf`;
+      a.download = `leave-pass-${applicationId}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -32,59 +35,80 @@ export default function QRLeavePass() {
     }
   };
 
-  const isApproved = currentApplication?.status === "approved";
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>QR Leave Pass</CardTitle>
       </CardHeader>
       <CardContent className="text-center">
-        {/* QR Code Display */}
-        <div className="w-48 h-48 mx-auto mb-4 bg-muted border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-          {isApproved && currentApplication?.finalQrUrl ? (
-            <img 
-              src={currentApplication.finalQrUrl} 
-              alt="QR Leave Pass" 
-              className="w-full h-full object-contain"
-              data-testid="img-qr-code"
-            />
-          ) : (
-            <div className="text-center">
-              <QrCode className="w-16 h-16 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                QR Code will appear<br />after final approval
-              </p>
-            </div>
-          )}
-        </div>
+        {approvedApplications.length > 0 ? (
+          <div className="space-y-6">
+            {approvedApplications.map((application) => (
+              <div key={application.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
+                {/* QR Code Display */}
+                <div className="w-48 h-48 mx-auto mb-4 bg-muted border-2 border-dashed border-border rounded-lg flex items-center justify-center">
+                  <img 
+                    src={application.final_qr_url!} 
+                    alt="QR Leave Pass" 
+                    className="w-full h-full object-contain p-2"
+                    data-testid={`img-qr-code-${application.id}`}
+                  />
+                </div>
 
-        {/* QR Code Info */}
-        <div className="text-left space-y-2 mb-4">
-          <div className="text-xs text-muted-foreground">
-            <p>QR Code includes:</p>
-            <ul className="list-disc list-inside mt-1 space-y-1">
-              <li>Student details</li>
-              <li>Leave dates</li>
-              <li>Approval status</li>
-              <li>Approver information</li>
-            </ul>
+                {/* Application Info */}
+                <div className="text-left space-y-2 mb-4">
+                  <div className="text-xs text-muted-foreground">
+                    <p className="font-medium">Leave Details:</p>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>{application.leave_type}</li>
+                      <li>{new Date(application.start_date).toLocaleDateString()} - {new Date(application.end_date).toLocaleDateString()}</li>
+                      <li>Status: Approved</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Download Button */}
+                <Button
+                  onClick={() => handleDownloadPDF(application.id)}
+                  className="w-full"
+                  data-testid={`button-download-pdf-${application.id}`}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF Pass
+                </Button>
+              </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <div>
+            {/* QR Code Placeholder */}
+            <div className="w-48 h-48 mx-auto mb-4 bg-muted border-2 border-dashed border-border rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <QrCode className="w-16 h-16 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  QR Code will appear<br />after final approval
+                </p>
+              </div>
+            </div>
 
-        {/* Download Button */}
-        <Button
-          onClick={handleDownloadPDF}
-          className="w-full"
-          disabled={!isApproved}
-          data-testid="button-download-pdf"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download PDF Pass
-        </Button>
-        <p className="text-xs text-muted-foreground mt-2">
-          {isApproved ? "Available for download" : "Available after final approval"}
-        </p>
+            {/* QR Code Info */}
+            <div className="text-left space-y-2 mb-4">
+              <div className="text-xs text-muted-foreground">
+                <p>QR Code includes:</p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>Student details</li>
+                  <li>Leave dates</li>
+                  <li>Approval status</li>
+                  <li>Approver information</li>
+                </ul>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Available after final approval
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
