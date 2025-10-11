@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import LeaveApplicationForm from "@/components/LeaveApplicationForm";
 import ApplicationStatus from "@/components/ApplicationStatus";
-import QRLeavePass from "@/components/QRLeavePass";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -115,8 +114,6 @@ export default function StudentDashboard() {
                 </div>
               </CardContent>
             </Card>
-
-            <QRLeavePass />
 
             {/* Quick Stats */}
             <Card>

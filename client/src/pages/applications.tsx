@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Calendar, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, FileText, Calendar, Clock, CheckCircle, XCircle, AlertCircle, QrCode, Download } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import type { LeaveRequest } from "@shared/schema";
 
@@ -44,6 +45,23 @@ export default function Applications() {
     queryKey: ["/api/leave-requests/current", userData?.id],
     enabled: !!userData?.id,
   });
+
+  const handleDownloadPDF = async (applicationId: string) => {
+    try {
+      const response = await fetch(`/api/leave-requests/${applicationId}/pdf`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leave-pass-${applicationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -183,6 +201,41 @@ export default function Applications() {
                           <div className="border-t pt-4 mt-4">
                             <p className="text-sm text-muted-foreground mb-2">Comments</p>
                             <p className="text-sm text-foreground">{app.comments}</p>
+                          </div>
+                        )}
+
+                        {app.status === "approved" && app.final_qr_url && (
+                          <div className="border-t pt-4 mt-4">
+                            <div className="flex items-start justify-between gap-6">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <QrCode className="h-5 w-5 text-primary" />
+                                  <h4 className="font-semibold text-foreground">QR Leave Pass</h4>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Your leave application has been approved. Use this QR code for verification.
+                                </p>
+                                <Button
+                                  onClick={() => handleDownloadPDF(app.id)}
+                                  variant="default"
+                                  className="w-full sm:w-auto"
+                                  data-testid={`button-download-pdf-${app.id}`}
+                                >
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download PDF Pass
+                                </Button>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <div className="w-32 h-32 bg-white border-2 border-border rounded-lg flex items-center justify-center p-2">
+                                  <img 
+                                    src={app.final_qr_url} 
+                                    alt="QR Leave Pass" 
+                                    className="w-full h-full object-contain"
+                                    data-testid={`img-qr-code-${app.id}`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </CardContent>
