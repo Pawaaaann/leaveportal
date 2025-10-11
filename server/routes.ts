@@ -163,15 +163,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           comments: comments || "Application rejected",
         });
 
-        // Generate rejection QR code
-        const qrData = {
-          student_id: leaveRequest.student_id,
-          leaveId: id,
-          status: "Not Approved",
-          rejectedBy: "Current User", // TODO: Get from auth context
-          rejectionReason: comments,
-        };
-        const qrUrl = await generateQRCode(qrData);
+        // Generate rejection QR code with verification URL
+        const baseUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+          : `http://localhost:5000`;
+        const verificationUrl = `${baseUrl}/verify/${id}`;
+        const qrUrl = await generateQRCode(verificationUrl);
         
         await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
         
@@ -196,16 +193,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const nextStageIndex = currentStageIndex + 1;
 
         if (nextStageIndex >= stages.length) {
-          // Final approval - generate QR code
-          const qrData = {
-            student_id: leaveRequest.student_id,
-            leaveId: id,
-            status: "Approved",
-            start_date: leaveRequest.start_date,
-            end_date: leaveRequest.end_date,
-            approvedBy: "Current User", // TODO: Get from auth context
-          };
-          const qrUrl = await generateQRCode(qrData);
+          // Final approval - generate QR code with verification URL
+          const baseUrl = process.env.REPL_SLUG 
+            ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+            : `http://localhost:5000`;
+          const verificationUrl = `${baseUrl}/verify/${id}`;
+          const qrUrl = await generateQRCode(verificationUrl);
 
           await storageInstance.updateLeaveRequest(id, {
             status: "approved",
@@ -270,6 +263,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verification endpoint for QR code scanning
+  app.get("/api/leave-requests/:id/verify", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const storageInstance = await storage;
+      const leaveRequest = await storageInstance.getLeaveRequest(id);
+      
+      if (!leaveRequest) {
+        return res.status(404).json({ error: "Leave request not found" });
+      }
+
+      const student = await storageInstance.getUser(leaveRequest.student_id);
+      
+      res.json({
+        leaveRequest: sanitizeLeaveRequest(leaveRequest),
+        student: student ? {
+          name: student.name,
+          register_number: student.register_number,
+          dept: student.dept,
+          year: student.year,
+          hostel_status: student.hostel_status,
+        } : null
+      });
+    } catch (error) {
+      console.error("Verification error:", error);
+      res.status(500).json({ error: "Failed to verify leave request" });
+    }
+  });
+
   // Guardian-specific approval endpoint with token authentication
   app.post("/api/leave-requests/:id/guardian-approve", async (req, res) => {
     try {
@@ -308,15 +330,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           guardian_token: null, // Invalidate token after use
         });
 
-        // Generate rejection QR code
-        const qrData = {
-          student_id: leaveRequest.student_id,
-          leaveId: id,
-          status: "Not Approved",
-          rejectedBy: "Guardian",
-          rejectionReason: comments || "Rejected by guardian",
-        };
-        const qrUrl = await generateQRCode(qrData);
+        // Generate rejection QR code with verification URL
+        const baseUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+          : `http://localhost:5000`;
+        const verificationUrl = `${baseUrl}/verify/${id}`;
+        const qrUrl = await generateQRCode(verificationUrl);
         
         await storageInstance.updateLeaveRequest(id, { final_qr_url: qrUrl });
       } else {

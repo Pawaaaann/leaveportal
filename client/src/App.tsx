@@ -17,6 +17,7 @@ import WardenDashboard from "@/pages/warden-dashboard";
 import Profile from "@/pages/profile";
 import Applications from "@/pages/applications";
 import Notifications from "@/pages/notifications";
+import VerifyLeave from "@/pages/verify-leave";
 import NotFound from "@/pages/not-found";
 
 function DashboardRouter() {
@@ -47,6 +48,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/verify/:id" component={VerifyLeave} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <DashboardRouter />

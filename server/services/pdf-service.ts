@@ -48,15 +48,10 @@ export async function generatePDF(leaveRequest: LeaveRequest): Promise<Buffer> {
       // QR Code
       if (leaveRequest.final_qr_url) {
         try {
-          const qrData = {
-            student_id: leaveRequest.student_id,
-            leaveId: leaveRequest.id,
-            status: leaveRequest.status,
-            start_date: leaveRequest.start_date,
-            end_date: leaveRequest.end_date,
-          };
-          
-          const qrBuffer = await generateQRCodeBuffer(qrData);
+          // Use the existing QR URL from the database (which is already a data URL)
+          // Extract the base64 data from the data URL
+          const base64Data = leaveRequest.final_qr_url.replace(/^data:image\/\w+;base64,/, '');
+          const qrBuffer = Buffer.from(base64Data, 'base64');
           doc.image(qrBuffer, doc.page.width / 2 - 64, doc.y, { width: 128 });
         } catch (error) {
           console.error("Error adding QR code to PDF:", error);
