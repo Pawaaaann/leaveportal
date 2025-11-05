@@ -4,7 +4,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // Check if Firebase environment variables are set
-const hasFirebaseConfig = 
+const hasFirebaseConfig =
   import.meta.env.VITE_FIREBASE_API_KEY &&
   import.meta.env.VITE_FIREBASE_PROJECT_ID &&
   import.meta.env.VITE_FIREBASE_APP_ID;
@@ -15,13 +15,18 @@ let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 
 if (hasFirebaseConfig) {
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
+  const authDomain = (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string) || `${projectId}.firebaseapp.com`;
+  // Firebase introduced firebasestorage.app, but older projects use appspot.com – allow override
+  const storageBucket = (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string) || `${projectId}.firebasestorage.app`;
+
   const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+    authDomain,
+    projectId,
+    storageBucket,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  };
+  } as const;
 
   try {
     app = initializeApp(firebaseConfig);

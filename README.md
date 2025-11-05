@@ -15,10 +15,16 @@ npm run dev
 The app will start the Express server with Vite middleware and open the client at `http://localhost:5000`.
 
 ## Environment Variables
-Copy `.env.example` to `.env` at the project root and fill in values if you want to enable Firebase features in the client. Without these, the app still works using backend authentication.
+If you want to enable Firebase features in the client, create a `.env.local` at the project root and fill in values below. Without these, the app still works using backend authentication.
 
-```
-cp .env.example .env   # Windows PowerShell: Copy-Item .env.example .env
+```ini
+# .env.local (do not commit)
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_APP_ID=your_app_id
+# Optional
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
 ```
 
 ### Client (Vite) variables
