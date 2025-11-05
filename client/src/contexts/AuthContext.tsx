@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function register(email: string, password: string, userData: Partial<User>) {
+    if (!auth || !db) {
+      throw new Error("Firebase is not configured. Please set up Firebase environment variables.");
+    }
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
@@ -126,7 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('backendAuth');
     } else {
       // Firebase logout for regular users
-      await signOut(auth);
+      if (auth) {
+        await signOut(auth);
+      }
     }
   }
 
@@ -158,6 +164,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (!auth || !db) {
+      // Firebase not configured, skip Firebase auth state listener
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       // Don't override admin or backend auth state with Firebase state changes
       if (isAdmin || isBackendAuth) {
@@ -167,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setCurrentUser(user);
       
-      if (user) {
+      if (user && db) {
         // Fetch user data from Firestore
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
