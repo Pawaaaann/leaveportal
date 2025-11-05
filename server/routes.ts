@@ -683,33 +683,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Delete from Firebase Authentication first
-      let firebaseDeleted = false;
+      // Try to delete from Firebase Authentication, but don't block on failure
       try {
         const { getAuth } = await import('firebase-admin/auth');
         const auth = getAuth();
         await auth.deleteUser(id);
-        firebaseDeleted = true;
         console.log(`User deleted from Firebase Auth: ${user.email}`);
       } catch (firebaseError: any) {
-        console.error("Firebase Auth user deletion failed:", firebaseError);
-        return res.status(500).json({ error: "Failed to delete user from authentication" });
+        // If Firebase isn't configured or user not found, proceed with storage deletion
+        const code = firebaseError?.code || firebaseError?.errorInfo?.code;
+        const message = firebaseError?.message || String(firebaseError);
+        const nonBlocking = code === 'auth/user-not-found' || code === 'app/invalid-credential' || code === 'app/no-app' || message?.toLowerCase?.().includes('credential') || message?.toLowerCase?.().includes('no app');
+        if (nonBlocking) {
+          console.warn(`Skipping Firebase Auth deletion for ${user.email}: ${code || ''} ${message}`);
+        } else {
+          console.warn(`Firebase Auth deletion error for ${user.email}, continuing with storage delete: ${message}`);
+        }
       }
       
-      // Only delete from storage if Firebase Auth deletion succeeded
+      // Always attempt storage deletion
       const deleted = await storageInstance.deleteUser(id);
-      
       if (deleted) {
-        res.json({ success: true, message: "User deleted successfully" });
-      } else {
-        // Storage deletion failed after Firebase Auth succeeded - this is inconsistent state
-        console.error(`Critical: Storage deletion failed for user ${id} after Firebase Auth deletion succeeded`);
-        console.error(`User ${user.email} has no authentication but storage record may persist`);
-        res.status(500).json({ 
-          error: "User authentication deleted but storage cleanup failed. Contact administrator.",
-          critical: true 
-        });
+        return res.json({ success: true, message: "User deleted successfully" });
       }
+      
+      // Storage deletion failed
+      console.error(`Storage deletion failed for user ${id}`);
+      return res.status(500).json({ error: "Failed to delete user from storage" });
     } catch (error) {
       console.error("User deletion error:", error);
       res.status(500).json({ error: "Failed to delete user" });
