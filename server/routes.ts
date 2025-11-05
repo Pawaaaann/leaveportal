@@ -618,6 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", async (req, res) => {
     try {
+      console.log("[ADMIN] Create user request:", req.body?.email, req.body?.role);
       const validatedData = insertUserSchema.parse(req.body);
       
       // Validate that role is one of the admin roles
@@ -640,6 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create user in storage with hashed password
       const user = await storageInstance.createUser(userData);
+      console.log("[ADMIN] Storage user created:", user.id);
       
       // Also create user in Firebase Authentication
       try {
@@ -655,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`User created in Firebase Auth: ${user.email}`);
       } catch (firebaseError: any) {
-        console.error("Firebase Auth user creation failed:", firebaseError);
+        console.warn("Firebase Auth user creation failed (continuing):", firebaseError?.message || firebaseError);
         // If Firebase Auth fails, we should probably delete the Firestore user too
         // For now, we'll continue since the user data is in Firestore
       }
@@ -663,11 +665,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(user);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid user data", details: error.errors });
-      } else {
-        console.error("User creation error:", error);
-        res.status(500).json({ error: "Failed to create user" });
+        return res.status(400).json({ error: "Invalid user data", details: error.errors });
       }
+      console.error("User creation error:", (error as any)?.message || error);
+      res.status(500).json({ error: (error as any)?.message || "Failed to create user" });
     }
   });
 

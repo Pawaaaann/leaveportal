@@ -663,9 +663,9 @@ async function createStorage(): Promise<IStorage> {
     throw new Error("Firebase Firestore is required in production but initialization failed");
   }
   
-  // Use Firestore if it initialized, but only enforce an operations test in production
+  // Use Firestore only if an operations test succeeds; otherwise fall back to memory
   let shouldUseFirestore = firestore !== null;
-  if (process.env.NODE_ENV === 'production' && shouldUseFirestore && firestore) {
+  if (shouldUseFirestore && firestore) {
     try {
       await firestore.collection('health').limit(1).get();
       console.log("Firestore operations test successful");
