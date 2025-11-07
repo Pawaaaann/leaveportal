@@ -79,8 +79,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If response is not JSON, get text
+          const text = await response.text();
+          errorMessage = text || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       
       const { user } = await response.json();
@@ -95,6 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         timestamp: Date.now()
       }));
     } catch (error: any) {
+      // Provide more helpful error messages
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        throw new Error('Unable to connect to server. Please check your internet connection and try again.');
+      }
       throw new Error(error.message || "Invalid email or password");
     }
   }
