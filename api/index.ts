@@ -91,57 +91,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // We've configured vercel.json to pass the path as a query parameter
     let originalPath = '';
     
+    // Debug logging (remove in production if needed)
+    console.log('Vercel request:', {
+      method: req.method,
+      url: req.url,
+      query: req.query,
+      pathParam: req.query?.path,
+    });
+    
     // First, try to get the path from the query parameter (from our rewrite rule)
     // This handles: /api/users/login -> /api/index?path=users/login
     if (req.query && typeof req.query.path === 'string') {
       // Reconstruct the full API path
       originalPath = `/api/${req.query.path}`;
+      console.log('Using path from query parameter:', originalPath);
     } else if (req.query && Array.isArray(req.query.path) && req.query.path.length > 0) {
       // Handle array case (shouldn't happen, but be safe)
       originalPath = `/api/${req.query.path[0]}`;
+      console.log('Using path from query parameter array:', originalPath);
     } else {
-      // Fallback: try to get from URL or headers
-      originalPath = req.url || '';
+      // Fallback: Check if req.url contains the original path
+      // In Vercel, the original URL might be in req.url directly
+      const urlPath = req.url || '';
       
-      // Try to get the original path from Vercel headers
-      if (req.headers['x-vercel-original-path']) {
-        originalPath = req.headers['x-vercel-original-path'] as string;
-      } else if (req.headers['x-invoke-path']) {
-        originalPath = req.headers['x-invoke-path'] as string;
+      // If it's already an API path, use it
+      if (urlPath.startsWith('/api/') && urlPath !== '/api/index' && !urlPath.startsWith('/api/index?')) {
+        originalPath = urlPath.split('?')[0]; // Remove query string
+        console.log('Using path from req.url:', originalPath);
+      } else {
+        // Try to get the original path from Vercel headers
+        if (req.headers['x-vercel-original-path']) {
+          originalPath = req.headers['x-vercel-original-path'] as string;
+          console.log('Using path from x-vercel-original-path:', originalPath);
+        } else if (req.headers['x-invoke-path']) {
+          originalPath = req.headers['x-invoke-path'] as string;
+          console.log('Using path from x-invoke-path:', originalPath);
+        } else {
+          // Try parsing URL to extract path
+          try {
+            const urlString = req.url || '/api';
+            let urlObj: URL;
+            if (urlString.startsWith('http')) {
+              urlObj = new URL(urlString);
+            } else {
+              const host = req.headers.host || 'localhost';
+              const protocol = req.headers['x-forwarded-proto'] || 'https';
+              urlObj = new URL(urlString, `${protocol}://${host}`);
+            }
+            const pathParam = urlObj.searchParams.get('path');
+            if (pathParam) {
+              originalPath = `/api/${pathParam}`;
+              console.log('Extracted path from URL search params:', originalPath);
+            } else {
+              originalPath = urlPath || '/api';
+              console.log('Using fallback path:', originalPath);
+            }
+          } catch (e) {
+            console.warn('Failed to parse URL:', req.url, e);
+            originalPath = urlPath || '/api';
+          }
+        }
       }
     }
     
-    // If we still don't have a path, try to extract from URL
-    if (!originalPath || originalPath === '/api/index' || originalPath.startsWith('/api/index?')) {
-      // Try to parse the URL to get the path parameter
-      try {
-        const urlString = req.url || '/api';
-        // If it's already a full URL, use it; otherwise construct one
-        let urlObj: URL;
-        if (urlString.startsWith('http')) {
-          urlObj = new URL(urlString);
-        } else {
-          const host = req.headers.host || 'localhost';
-          const protocol = req.headers['x-forwarded-proto'] || 'https';
-          urlObj = new URL(urlString, `${protocol}://${host}`);
-        }
-        const pathParam = urlObj.searchParams.get('path');
-        if (pathParam) {
-          originalPath = `/api/${pathParam}`;
-        } else {
-          // Last resort: try to extract from the URL path itself
-          const urlPath = urlObj.pathname;
-          if (urlPath && urlPath !== '/api/index') {
-            originalPath = urlPath;
-          } else {
-            originalPath = '/api';
-          }
-        }
-      } catch (e) {
-        // If URL parsing fails, use a default
-        console.warn('Failed to parse URL:', req.url, e);
-        originalPath = '/api';
-      }
+    // Final validation - if we still don't have a valid path, log warning
+    if (!originalPath || originalPath === '/api' || originalPath === '/api/index') {
+      console.warn('Could not determine API path, using:', originalPath);
     }
     
     // Extract path and query string

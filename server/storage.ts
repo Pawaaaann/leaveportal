@@ -656,28 +656,35 @@ export class FirestoreStorage implements IStorage {
 
 // Create storage instance with proper initialization check
 async function createStorage(): Promise<IStorage> {
-  const firestore = await tryInitializeFirestore();
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  if (isProduction && !firestore) {
-    throw new Error("Firebase Firestore is required in production but initialization failed");
-  }
-  
-  // Use Firestore only if an operations test succeeds; otherwise fall back to memory
-  let shouldUseFirestore = firestore !== null;
-  if (shouldUseFirestore && firestore) {
-    try {
-      await firestore.collection('health').limit(1).get();
-      console.log("Firestore operations test successful");
-    } catch (error: any) {
-      console.warn("Firestore operations failed, falling back to memory storage:", error.message);
-      shouldUseFirestore = false;
+  try {
+    const firestore = await tryInitializeFirestore();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Use Firestore only if an operations test succeeds; otherwise fall back to memory
+    let shouldUseFirestore = firestore !== null;
+    if (shouldUseFirestore && firestore) {
+      try {
+        await firestore.collection('health').limit(1).get();
+        console.log("Firestore operations test successful");
+      } catch (error: any) {
+        console.warn("Firestore operations failed, falling back to memory storage:", error.message);
+        shouldUseFirestore = false;
+      }
     }
+    
+    if (isProduction && !shouldUseFirestore) {
+      console.warn("WARNING: Using memory storage in production. Data will not persist between serverless function invocations.");
+      console.warn("Please configure Firebase Firestore for production use.");
+    }
+    
+    console.log(`Using storage: ${shouldUseFirestore ? 'Firestore' : 'Memory Storage'}`);
+    
+    return shouldUseFirestore ? new FirestoreStorage() : new MemStorage();
+  } catch (error: any) {
+    console.error("Storage initialization error:", error);
+    console.warn("Falling back to memory storage due to initialization error");
+    return new MemStorage();
   }
-  
-  console.log(`Using storage: ${shouldUseFirestore ? 'Firestore' : 'Memory (development only)'}`);
-  
-  return shouldUseFirestore ? new FirestoreStorage() : new MemStorage();
 }
 
 // Export a promise that resolves to the appropriate storage

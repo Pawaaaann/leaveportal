@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema } from "@shared/schema";
+import { storage, type IStorage } from "./storage";
+import { insertLeaveRequestSchema, insertUserSchema, insertNotificationSchema, type LeaveRequest } from "@shared/schema";
 import { generateQRCode } from "./services/qr-service";
 import { generatePDF } from "./services/pdf-service";
 import { notifyApprovers, createNotification } from "./services/notification-service";
@@ -30,7 +30,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/leave-requests", async (req, res) => {
     try {
       const validatedData = insertLeaveRequestSchema.parse(req.body);
-      const storageInstance = await storage;
+      let storageInstance: IStorage;
+      try {
+        storageInstance = await storage;
+      } catch (storageError: any) {
+        console.error("Storage initialization failed:", storageError);
+        return res.status(500).json({ 
+          error: "Database connection failed. Please check server configuration.",
+          details: storageError.message
+        });
+      }
       
       // Create leave request - starts directly at mentor stage (guardian approval removed)
       const leaveRequestData = {
@@ -305,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter by department and year if provided
       if (department || year) {
-        approvedRequests = await Promise.all(
+        const filteredResults = await Promise.all(
           approvedRequests.map(async (request) => {
             const student = await storageInstance.getUser(request.student_id);
             if (!student) return null;
@@ -316,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return request;
           })
         );
-        approvedRequests = approvedRequests.filter(req => req !== null) as any[];
+        approvedRequests = filteredResults.filter((req): req is LeaveRequest => req !== null);
       }
       
       // Sort by date (newest first)
@@ -346,7 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter by department and year if provided
       if (department || year) {
-        rejectedRequests = await Promise.all(
+        const filteredResults = await Promise.all(
           rejectedRequests.map(async (request) => {
             const student = await storageInstance.getUser(request.student_id);
             if (!student) return null;
@@ -357,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return request;
           })
         );
-        rejectedRequests = rejectedRequests.filter(req => req !== null) as any[];
+        rejectedRequests = filteredResults.filter((req): req is LeaveRequest => req !== null);
       }
       
       // Sort by date (newest first)
@@ -439,7 +448,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email, password and role are required" });
       }
       
-      const storageInstance = await storage;
+      let storageInstance: IStorage;
+      try {
+        storageInstance = await storage;
+      } catch (storageError: any) {
+        console.error("Storage initialization failed:", storageError);
+        return res.status(500).json({ 
+          error: "Database connection failed. Please check server configuration.",
+          details: process.env.NODE_ENV === 'production' ? "Firebase Firestore may not be configured correctly." : storageError.message
+        });
+      }
       
       // Check if user exists with this email
       const user = await storageInstance.getUserByEmail(email);
@@ -461,9 +479,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return user data without password
       const { password: _, ...userWithoutPassword } = user;
       res.json({ success: true, user: userWithoutPassword });
-    } catch (error) {
+    } catch (error: any) {
       console.error("User login error:", error);
-      res.status(500).json({ error: "Failed to login user" });
+      res.status(500).json({ 
+        error: "Failed to login user",
+        message: error?.message || "An unexpected error occurred"
+      });
     }
   });
 

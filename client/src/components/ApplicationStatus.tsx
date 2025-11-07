@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Minus } from "lucide-react";
-import { LeaveRequest, Approval } from "@shared/schema";
+import { LeaveRequest } from "@shared/schema";
 
 const getStageOrder = (isHostelStudent: boolean) => {
   const stages = ["mentor", "hod", "principal"];
@@ -57,18 +57,38 @@ export default function ApplicationStatus() {
     );
   }
 
-  const stages = getStageOrder(currentApplication.isHostelStudent || false);
-  const approvals = (currentApplication.approvals as Approval[]) || [];
+  const stages = getStageOrder(currentApplication.is_hostel_student || false);
 
   const getStageStatus = (stage: string) => {
-    const approval = approvals.find(a => a.stage === stage);
-    if (approval) {
-      return approval.status === "approved" ? "approved" : "rejected";
+    // Check if this stage has been passed (current stage is after this one)
+    const stageIndex = stages.indexOf(stage);
+    const currentStageIndex = stages.indexOf(currentApplication.approver_stage);
+    
+    if (currentApplication.status === "rejected") {
+      // If rejected, check if rejection happened at or after this stage
+      if (currentStageIndex >= stageIndex) {
+        return "rejected";
+      }
+      return "waiting";
     }
-    if (stage === currentApplication.currentStage) {
+    
+    if (currentApplication.status === "approved") {
+      // If approved, all stages up to the last one are approved
+      if (stageIndex < stages.length - 1) {
+        return "approved";
+      }
+      // Last stage is approved
+      return "approved";
+    }
+    
+    // Pending status
+    if (stageIndex === currentStageIndex) {
       return "pending";
+    } else if (stageIndex < currentStageIndex) {
+      return "approved";
+    } else {
+      return "waiting";
     }
-    return "waiting";
   };
 
   const getStatusColor = (status: string) => {
@@ -107,10 +127,10 @@ export default function ApplicationStatus() {
         <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
           <div>
             <h3 className="font-medium text-foreground" data-testid="text-application-type">
-              {currentApplication.leaveType} Leave Application
+              {currentApplication.leave_type} Leave Application
             </h3>
             <p className="text-sm text-muted-foreground" data-testid="text-submission-date">
-              Submitted on {new Date(currentApplication.createdAt!).toLocaleDateString()}
+              Submitted on {new Date(currentApplication.start_date).toLocaleDateString()}
             </p>
           </div>
           <Badge variant={getStatusBadgeVariant(currentApplication.status)} data-testid="badge-application-status">
@@ -125,9 +145,9 @@ export default function ApplicationStatus() {
           <div className="space-y-4">
             {stages.map((stage, index) => {
               const status = getStageStatus(stage);
-              const approval = approvals.find(a => a.stage === stage);
               const bgColor = status === "approved" ? "bg-green-500" : 
-                             status === "pending" ? "bg-yellow-500" : "bg-gray-300";
+                             status === "pending" ? "bg-yellow-500" : 
+                             status === "rejected" ? "bg-red-500" : "bg-gray-300";
 
               return (
                 <div key={stage} className="flex items-center space-x-4" data-testid={`status-${stage}`}>
@@ -137,13 +157,13 @@ export default function ApplicationStatus() {
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{getStageDisplay(stage)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {approval ? 
-                        `${approval.approverName} - ${status === "approved" ? "Approved" : "Rejected"} on ${new Date(approval.timestamp).toLocaleDateString()}` :
-                        status === "pending" ? "Pending Review" : "Awaiting Previous Approval"
-                      }
+                      {status === "pending" ? "Pending Review" : 
+                       status === "approved" ? "Approved" : 
+                       status === "rejected" ? "Rejected" : 
+                       "Awaiting Previous Approval"}
                     </p>
-                    {approval?.comments && (
-                      <p className="text-sm text-muted-foreground italic">"{approval.comments}"</p>
+                    {currentApplication.comments && status !== "waiting" && (
+                      <p className="text-sm text-muted-foreground italic">"{currentApplication.comments}"</p>
                     )}
                   </div>
                   <span className={`font-medium ${getStatusColor(status)}`}>
