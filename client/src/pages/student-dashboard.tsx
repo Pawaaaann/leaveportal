@@ -161,10 +161,10 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Recent Applications History */}
+        {/* Approved Applications */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Recent Applications</CardTitle>
+            <CardTitle>Approved Applications</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -175,19 +175,19 @@ export default function StudentDashboard() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reason</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date Range</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Current Stage</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Comments</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {applications.length === 0 ? (
+                  {applications.filter(app => app.status === "approved").length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-muted-foreground">
-                        No applications found
+                        No approved applications
                       </td>
                     </tr>
                   ) : (
-                    applications.map((app) => (
-                      <tr key={app.id} className="border-b border-border hover:bg-muted/50" data-testid={`row-application-${app.id}`}>
+                    applications.filter(app => app.status === "approved").map((app) => (
+                      <tr key={app.id} className="border-b border-border hover:bg-muted/50" data-testid={`row-approved-${app.id}`}>
                         <td className="py-3 px-4 text-sm font-medium text-foreground">#{app.id?.slice(-6)}</td>
                         <td className="py-3 px-4 text-sm text-foreground">{app.reason}</td>
                         <td className="py-3 px-4 text-sm text-foreground">
@@ -198,7 +198,54 @@ export default function StudentDashboard() {
                             {app.status}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-sm text-foreground">{app.approver_stage}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">{app.comments || "-"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Rejected Applications */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Rejected Applications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Application ID</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reason</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date Range</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rejection Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.filter(app => app.status === "rejected").length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                        No rejected applications
+                      </td>
+                    </tr>
+                  ) : (
+                    applications.filter(app => app.status === "rejected").map((app) => (
+                      <tr key={app.id} className="border-b border-border hover:bg-muted/50" data-testid={`row-rejected-${app.id}`}>
+                        <td className="py-3 px-4 text-sm font-medium text-foreground">#{app.id?.slice(-6)}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">{app.reason}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">
+                          {new Date(app.start_date).toLocaleDateString()} - {new Date(app.end_date).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={getStatusVariant(app.status)}>
+                            {app.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-foreground">{app.comments || "No reason provided"}</td>
                       </tr>
                     ))
                   )}

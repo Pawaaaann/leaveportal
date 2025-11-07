@@ -191,7 +191,7 @@ export class MemStorage implements IStorage {
       ...insertRequest,
       id,
       status: "pending",
-      approver_stage: "guardian",
+      approver_stage: "mentor", // Starts at mentor stage (guardian approval removed)
       comments: null,
       final_qr_url: null,
       guardian_token: (insertRequest as any).guardian_token || null,
@@ -512,7 +512,7 @@ export class FirestoreStorage implements IStorage {
         ...insertRequest,
         id,
         status: "pending",
-        approver_stage: "guardian",
+        approver_stage: "mentor", // Starts at mentor stage (guardian approval removed)
         comments: null,
         final_qr_url: null,
         guardian_token: (insertRequest as any).guardian_token || null,

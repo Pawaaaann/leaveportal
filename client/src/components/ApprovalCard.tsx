@@ -32,7 +32,16 @@ export default function ApprovalCard({ application }: ApprovalCardProps) {
         description: "Application updated successfully",
       });
       setComments("");
+      // Invalidate all related queries to refresh the UI immediately
       queryClient.invalidateQueries({ queryKey: ["/api/leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests/approved"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests/rejected"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests/stats"] });
+      // Invalidate mentor-specific queries
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes('/api/leave-requests')
+      });
     },
     onError: () => {
       toast({
@@ -58,10 +67,10 @@ export default function ApprovalCard({ application }: ApprovalCardProps) {
           <div>
             <h4 className="font-medium text-foreground" data-testid="text-applicant-name">
               {/* This would be populated with actual student data */}
-              Student Name - {application.leaveType} Leave
+              Student ID: {application.student_id} - {application.leave_type} Leave
             </h4>
             <p className="text-sm text-muted-foreground">
-              {new Date(application.fromDate).toLocaleDateString()} - {new Date(application.toDate).toLocaleDateString()}
+              {new Date(application.start_date).toLocaleDateString()} - {new Date(application.end_date).toLocaleDateString()}
             </p>
           </div>
           <Badge variant="secondary">Pending Review</Badge>

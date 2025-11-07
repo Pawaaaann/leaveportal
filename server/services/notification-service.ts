@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { generateGuardianApprovalLink } from "./token-service";
+// Guardian approval removed
 
 export async function createNotification(
   userId: string,
@@ -31,24 +31,6 @@ export async function notifyApprovers(
     let approvers: any[] = [];
     
     switch (stage) {
-      case "guardian":
-        // For guardian stage, we need to handle external notification
-        const leaveRequest = await storageInstance.getLeaveRequest(leaveRequestId);
-        if (leaveRequest && leaveRequest.guardian_token) {
-          const approvalLink = generateGuardianApprovalLink(leaveRequestId, leaveRequest.guardian_token);
-          console.log(`Guardian approval required for leave request ${leaveRequestId}`);
-          console.log(`Guardian approval link generated with token ending: ...${leaveRequest.guardian_token.slice(-8)}`);
-          const guardianNumber = leaveRequest.guardian_phone || '';
-          const maskedNumber = guardianNumber.length > 5 ? 
-            `${guardianNumber.slice(0, 3)}****${guardianNumber.slice(-2)}` : 
-            '***';
-          console.log(`Guardian number: ${maskedNumber}`);
-          // TODO: Send SMS to guardian phone with approval link
-          // For now, logging the link that would be sent via SMS
-        } else {
-          console.error(`No guardian token found for leave request ${leaveRequestId}`);
-        }
-        return;
       case "mentor":
         // Get the student who submitted the leave request
         const mentorLeaveRequest = await storageInstance.getLeaveRequest(leaveRequestId);
