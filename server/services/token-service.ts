@@ -74,7 +74,9 @@ export function verifyGuardianToken(token: string, leaveRequestId: string, guard
 }
 
 export function generateGuardianApprovalLink(leaveRequestId: string, token: string): string {
-  // In production, this would be the actual domain
-  const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+  // Use Vercel URL if available, otherwise fall back to BASE_URL or localhost
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.BASE_URL || "http://localhost:5000";
   return `${baseUrl}/guardian-approve/${leaveRequestId}?token=${encodeURIComponent(token)}`;
 }

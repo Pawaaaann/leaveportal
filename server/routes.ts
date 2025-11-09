@@ -155,9 +155,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         // Generate rejection QR code with verification URL
-        const baseUrl = process.env.REPL_SLUG 
-          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-          : `http://localhost:5000`;
+        const baseUrl = process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}`
+          : process.env.BASE_URL || (process.env.REPL_SLUG 
+            ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+            : `http://localhost:5000`);
         const verificationUrl = `${baseUrl}/verify/${id}`;
         const qrUrl = await generateQRCode(verificationUrl);
         
@@ -186,9 +188,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (nextStageIndex >= stages.length) {
           // Final approval - generate QR code with verification URL
-          const baseUrl = process.env.REPL_SLUG 
-            ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-            : `http://localhost:5000`;
+          const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}`
+            : process.env.BASE_URL || (process.env.REPL_SLUG 
+              ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+              : `http://localhost:5000`);
           const verificationUrl = `${baseUrl}/verify/${id}`;
           const qrUrl = await generateQRCode(verificationUrl);
 
